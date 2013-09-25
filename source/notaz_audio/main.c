@@ -39,6 +39,7 @@
 #include "m64p_plugin.h"
 #include "m64p_common.h"
 #include "m64p_config.h"
+#include "m64p_frontend.h"
 
 #include "osal_dynamiclib.h"
 
@@ -68,6 +69,7 @@ extern ptr_ConfigGetParamInt      ConfigGetParamInt;
 extern ptr_ConfigGetParamFloat    ConfigGetParamFloat;
 extern ptr_ConfigGetParamBool     ConfigGetParamBool;
 extern ptr_ConfigGetParamString   ConfigGetParamString;
+extern ptr_CoreDoCommand		  CoreDoCommand;
 
 /* definitions of pointers to Core config functions */
 ptr_ConfigOpenSection      ConfigOpenSection = NULL;
@@ -84,6 +86,7 @@ ptr_ConfigGetParamInt      ConfigGetParamInt = NULL;
 ptr_ConfigGetParamFloat    ConfigGetParamFloat = NULL;
 ptr_ConfigGetParamBool     ConfigGetParamBool = NULL;
 ptr_ConfigGetParamString   ConfigGetParamString = NULL;
+ptr_CoreDoCommand		   CoreDoCommand = NULL;
 
 /* local variables */
 static void (*l_DebugCallback)(void *, int, const char *) = NULL;
@@ -143,10 +146,6 @@ static int init(int freq)
 	int ret, i;
 
 	input_freq = freq;
-
-	minimum_rate = ConfigGetParamInt(l_ConfigAudio, "MINIMUM_RATE" );
-	output_freq = minimum_rate;
-	pich_percent = ConfigGetParamInt(l_ConfigAudio, "PITCH_PERCENT" );
 
 	// find lowest alowed rate that is higher than game's output
 	for (i = 0; i < ARRAY_SIZE(supported_rates); i++) {
@@ -343,7 +342,7 @@ EXPORT void CALL CloseDLL(void)
 		close(sound_dev);
 	sound_dev = -1;
 }
-*/
+
 static char config_file[512];
 
 static void read_config(void)
@@ -376,7 +375,6 @@ static void read_config(void)
 	}
 	fclose(f);
 }
-/*
 EXPORT void CALL SetConfigDir(char *configDir)
 {
 	snprintf(config_file, sizeof(config_file), "%snotaz_audio.conf", configDir);
@@ -440,7 +438,60 @@ EXPORT int CALL RomOpen(void)
     if (!l_PluginInit)
         return 0;
 
+	minimum_rate = ConfigGetParamInt(l_ConfigAudio, "MINIMUM_RATE" );
+	pich_percent = ConfigGetParamInt(l_ConfigAudio, "PITCH_PERCENT" );
+	
+	/* get rom crc */
+	char romcrc[50];
+	m64p_rom_header romheader;
+	CoreDoCommand(M64CMD_ROM_GET_HEADER, sizeof(romheader), &romheader);		// is that the right way to get rom header and crc ?
+	sprintf((char*)romcrc, "%08x%08x", (unsigned int)romheader.CRC1, (unsigned int)romheader.CRC2);
+	
+	/* open NotazAudio.ini if any, and look for the rom crc section to have per rom config */
+	FILE *f;
+	f = fopen("NotazAudio.ini", "r");
+	if (f) 
+	{
+		int section = 0;
+		int rightsection = 0;
+		char line[500];
+		while (!feof(f)) 
+		{
+			fgets(line, 500, f);
+			size_t ln = strlen(line) - 1;
+			if (line[ln] == '\n')
+				line[ln] = '\0';
+			// *TODO* remove unused whitespaces
+			if (line[0] == '/')
+				continue;
+			if (!(strcasecmp(line,"")==0))
+			{
+				if (line[0] == '{') //if a section heading
+				{
+					line[strlen(line)-1]='\0';
+					if (strcasecmp(line+1,romcrc)==0)
+						section = 1;	// found !!!
+					else
+						section = 0;
+				} else if (section==1) 
+				{
+					if (strncasecmp(line, "MINIMUM_RATE", 12)==0) 
+					{
+						minimum_rate = strtol(strchr(line,'=')+1,NULL,10);
+					}
+					else if (strncasecmp(line, "PITCH_PERCENT", 13)==0) 
+					{
+						pich_percent = strtol(strchr(line,'=')+1,NULL,10);
+					}
+				}
+			}
+		}
+		fclose(f);
+	
+	}
+
 	/* This function is for compatibility with Mupen64. */
+	output_freq = minimum_rate;
 	init(input_freq);
 	return 1;
 }
@@ -546,9 +597,12 @@ EXPORT m64p_error CALL PluginStartup(m64p_dynlib_handle CoreLibHandle, void *Con
     ConfigGetParamBool = (ptr_ConfigGetParamBool) osal_dynlib_getproc(CoreLibHandle, "ConfigGetParamBool");
     ConfigGetParamString = (ptr_ConfigGetParamString) osal_dynlib_getproc(CoreLibHandle, "ConfigGetParamString");
 
+    CoreDoCommand = (ptr_ConfigGetParamString) osal_dynlib_getproc(CoreLibHandle, "CoreDoCommand");
+
     if (!ConfigOpenSection || !ConfigDeleteSection || !ConfigSetParameter || !ConfigGetParameter ||
         !ConfigSetDefaultInt || !ConfigSetDefaultFloat || !ConfigSetDefaultBool || !ConfigSetDefaultString ||
-        !ConfigGetParamInt   || !ConfigGetParamFloat   || !ConfigGetParamBool   || !ConfigGetParamString)
+        !ConfigGetParamInt   || !ConfigGetParamFloat   || !ConfigGetParamBool   || !ConfigGetParamString ||
+		!CoreDoCommand )
         return M64ERR_INCOMPATIBLE;
 
     /* ConfigSaveSection was added in Config API v2.1.0 */
