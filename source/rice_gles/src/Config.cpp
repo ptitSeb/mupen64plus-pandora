@@ -431,7 +431,7 @@ static void ReadConfiguration(void)
 {
     windowSetting.bDisplayFullscreen = ConfigGetParamBool(l_ConfigVideoGeneral, "Fullscreen");
     windowSetting.uDisplayWidth = ConfigGetParamInt(l_ConfigVideoGeneral, "ScreenWidth");
-#ifdef HAVE_GLES0
+#ifdef HAVE_GLES
 	if (windowSetting.uDisplayWidth==800)
 		windowSetting.uDisplayWidth = 640;	// no strech
 #endif

@@ -214,17 +214,20 @@ void Config_LoadRomConfig(unsigned char* header)
     }
 
     LOG(LOG_MINIMAL, "Rom is %s\n", config.romPAL ? "PAL" : "NTSC");
+printf("Rom is %s\n", config.romPAL ? "PAL" : "NTSC");
 
     const char *filename = ConfigGetSharedDataFilepath("gles2n64rom.conf");
     FILE *f = fopen(filename,"r");
     if (!f)
     {
         LOG(LOG_MINIMAL, "Could not find %s Rom settings file, using global.\n", filename);
+printf("Could not find %s Rom settings file, using global.\n", filename);
         return;
     }
     else
     {
         LOG(LOG_MINIMAL, "[gles2N64]: Searching %s Database for \"%s\" ROM\n", filename, config.romName);
+printf("[gles2N64]: Searching %s Database for \"%s\" ROM\n", filename, config.romName);
         bool isRom = false;
         while (!feof(f))
         {
@@ -249,6 +252,7 @@ void Config_LoadRomConfig(unsigned char* header)
                     *val++ = '\0';
                     Config_SetOption(line,val);
                     LOG(LOG_MINIMAL, "%s = %s", line, val);
+printf("%s = %s", line, val);
                 }
             }
         }
@@ -272,11 +276,14 @@ void Config_LoadConfig()
     {
         LOG(LOG_MINIMAL, "[gles2N64]: Couldn't open config file '%s' for reading: %s\n", filename, strerror( errno ) );
         LOG(LOG_MINIMAL, "[gles2N64]: Attempting to write new Config \n");
+printf("[gles2N64]: Couldn't open config file '%s' for reading: %s\n", filename, strerror( errno ) );
+printf("[gles2N64]: Attempting to write new Config \n");
         Config_WriteConfig(filename);
     }
     else
     {
         LOG(LOG_MINIMAL, "[gles2n64]: Loading Config from %s \n", filename);
+printf("[gles2n64]: Loading Config from %s \n", filename);
 
         while (!feof( f ))
         {
@@ -297,6 +304,7 @@ void Config_LoadConfig()
         if (config.version < CONFIG_VERSION)
         {
             LOG(LOG_WARNING, "[gles2N64]: Wrong config version, rewriting config with defaults\n");
+printf("[gles2N64]: Wrong config version, rewriting config with defaults\n");
             Config_SetDefault();
             Config_WriteConfig(filename);
         }

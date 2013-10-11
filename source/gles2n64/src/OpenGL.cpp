@@ -266,7 +266,7 @@ else*/
 
     // TODO: Replace SDL_SetVideoMode with something that is SDL 2.0 compatible
     //       Better yet, eliminate all SDL calls by using the Mupen64Plus core api
-    if (!(OGL.hScreen = SDL_SetVideoMode( current_w, current_h, bitsPP, SDL_HWSURFACE )))
+    if (!(OGL.hScreen = SDL_SetVideoMode( current_w, current_h, bitsPP, SDL_HWSURFACE | SDL_FULLSCREEN )))
     {
         LOG(LOG_ERROR, "Problem setting videomode %dx%d: %s\n", current_w, current_h, SDL_GetError() );
         SDL_QuitSubSystem( SDL_INIT_VIDEO );
