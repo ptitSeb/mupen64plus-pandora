@@ -780,6 +780,13 @@ uint32 DLParser_CheckUcode(uint32 ucStart, uint32 ucDStart, uint32 ucSize, uint3
 extern int dlistMtxCount;
 extern bool bHalfTxtScale;
 
+extern float mspervi;
+extern float numvi;
+static int skipframe=0;
+static unsigned int oldtick=0;
+static int oldskip=0;
+extern bool skipping;
+
 void DLParser_Process(OSTask * pTask)
 {
     static int skipframe=0;
@@ -796,7 +803,7 @@ void DLParser_Process(OSTask * pTask)
     }
 
     status.bScreenIsDrawn = true;
-    if( options.bSkipFrame )
+/*    if( options.bSkipFrame )
     {
         skipframe++;
         if(skipframe%2)
@@ -806,10 +813,42 @@ void DLParser_Process(OSTask * pTask)
             return;
         }
     }
-
+*/
     if( currentRomOptions.N64RenderToTextureEmuType != TXT_BUF_NONE && defaultRomOptions.bSaveVRAM )
     {
         g_pFrameBufferManager->CheckRenderTextureCRCInRDRAM();
+    }
+
+    unsigned int newtick=0;
+    static int count = 0;
+    if( options.bSkipFrame )
+    {
+ 	skipping=false;
+	newtick = SDL_GetTicks();
+	if (newtick-oldtick>400 || skipframe>4 || numvi==0) {
+		oldtick=newtick;			// too long frame delay, something must have gone wrong
+		skipping=false;
+	} else
+	if ((float)(newtick-oldtick)>=mspervi*numvi+3.0f) {
+		skipping=true;
+	}
+	// don't jump frameskipping...
+	if (skipping) {
+		//want to skip, be progress slowly...
+		if (skipframe>oldskip+1)
+			skipping = false;
+	}
+	if (skipping) {
+	        skipframe++;
+		status.bScreenIsDrawn = false;
+		TriggerDPInterrupt();
+		TriggerSPInterrupt();
+		return;
+	}
+        oldskip = skipframe;
+        skipframe=0;
+        oldtick=newtick;
+        numvi=0;
     }
 
     g_pOSTask = pTask;

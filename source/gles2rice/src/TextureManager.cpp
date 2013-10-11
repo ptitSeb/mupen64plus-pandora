@@ -865,6 +865,9 @@ void CTextureManager::ConvertTexture(TxtrCacheEntry * pEntry, bool fromTMEM)
     {
         pF( pEntry->pTexture, pEntry->ti );
     
+/*printf("Decompress 32bit Texture:\n\tFormat: %s\n\tImage Size:%d\n", 
+                pszImgFormat[pEntry->ti.Format], pnImgSize[pEntry->ti.Size]);
+printf("Palette Format: %s (%d)\n", textlutname[pEntry->ti.TLutFmt>>RSP_SETOTHERMODE_SHIFT_TEXTLUT], pEntry->ti.TLutFmt>>RSP_SETOTHERMODE_SHIFT_TEXTLUT);*/
         LOG_TEXTURE(
         {
             DebuggerAppendMsg("Decompress 32bit Texture:\n\tFormat: %s\n\tImage Size:%d\n", 
@@ -874,6 +877,7 @@ void CTextureManager::ConvertTexture(TxtrCacheEntry * pEntry, bool fromTMEM)
     }
     else
     {
+//printf("ConvertTexture: Unable to decompress %s/%dbpp", pszImgFormat[pEntry->ti.Format], pnImgSize[pEntry->ti.Size]);
         TRACE2("ConvertTexture: Unable to decompress %s/%dbpp", pszImgFormat[pEntry->ti.Format], pnImgSize[pEntry->ti.Size]);
     }
 

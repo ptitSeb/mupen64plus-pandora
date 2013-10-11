@@ -101,6 +101,11 @@ ptr_VidExt_GL_SetAttribute       CoreVideo_GL_SetAttribute = NULL;
 ptr_VidExt_GL_GetAttribute       CoreVideo_GL_GetAttribute = NULL;
 ptr_VidExt_GL_SwapBuffers        CoreVideo_GL_SwapBuffers = NULL;
 
+// For Fameskip
+float mspervi = 1000.0f/60.0f;	//default is shortest frame
+float numvi = 0.0f;
+bool skipping = false;
+
 //---------------------------------------------------------------------------------------
 // Forward function declarations
 
@@ -171,12 +176,21 @@ static void UpdateScreenStep2 (void)
     }
 
     g_CritialSection.Lock();
+
+    //framskip, count vi
+    numvi++;
+
     if( status.bHandleN64RenderTexture )
         g_pFrameBufferManager->CloseRenderTexture(true);
+
+    if (skipping) {
+        g_CritialSection.Unlock();
+        return;
+    }
     
     g_pFrameBufferManager->SetAddrBeDisplayed(*g_GraphicsInfo.VI_ORIGIN_REG);
 
-    if( status.gDlistCount == 0 )
+    if(status.gDlistCount == 0)
     {
         // CPU frame buffer update
         uint32 width = *g_GraphicsInfo.VI_WIDTH_REG;
@@ -326,10 +340,13 @@ static bool StartVideo(void)
 
     GenerateCurrentRomOptions();
     status.dwTvSystem = CountryCodeToTVSystem(g_curRomInfo.romheader.nCountryID);
-    if( status.dwTvSystem == TV_SYSTEM_NTSC )
+    if( status.dwTvSystem == TV_SYSTEM_NTSC ) {
         status.fRatio = 0.75f;
-    else
-        status.fRatio = 9/11.0f;;
+	mspervi=1000.0f/60.0f;		//for framskipping
+    } else {
+        status.fRatio = 9/11.0f;
+	mspervi=1000.0f/50.0f;		//for framskipping
+    }
     
     InitExternalTextures();
 

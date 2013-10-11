@@ -429,6 +429,10 @@ static void ReadConfiguration(void)
 {
     windowSetting.bDisplayFullscreen = ConfigGetParamBool(l_ConfigVideoGeneral, "Fullscreen");
     windowSetting.uDisplayWidth = ConfigGetParamInt(l_ConfigVideoGeneral, "ScreenWidth");
+#if 1
+	if (windowSetting.uDisplayWidth==800)
+		windowSetting.uDisplayWidth = 640;	// no strech
+#endif
     windowSetting.uDisplayHeight = ConfigGetParamInt(l_ConfigVideoGeneral, "ScreenHeight");
     windowSetting.bVerticalSync = ConfigGetParamBool(l_ConfigVideoGeneral, "VerticalSync");
 
@@ -460,6 +464,8 @@ static void ReadConfiguration(void)
     options.bShowFPS = ConfigGetParamBool(l_ConfigVideoRice, "ShowFPS");
 
     options.mipmapping = ConfigGetParamInt(l_ConfigVideoRice, "Mipmapping");
+	//*SEB* Force to 0 has other setting crash on the Pandora
+	options.mipmapping = 0;
     options.fogMethod = ConfigGetParamInt(l_ConfigVideoRice, "FogMethod");
     options.forceTextureFilter = ConfigGetParamInt(l_ConfigVideoRice, "ForceTextureFilter");
     options.textureEnhancement = ConfigGetParamInt(l_ConfigVideoRice, "TextureEnhancement");
@@ -470,7 +476,9 @@ static void ReadConfiguration(void)
     options.colorQuality = ConfigGetParamInt(l_ConfigVideoRice, "ColorQuality");
     options.OpenglRenderSetting = ConfigGetParamInt(l_ConfigVideoRice, "OpenGLRenderSetting");
     options.anisotropicFiltering = ConfigGetParamInt(l_ConfigVideoRice, "AnisotropicFiltering");
-
+	//*SEB* Force to 0 has mipmapping is already forced to 0
+	options.anisotropicFiltering = 0;
+	
     CDeviceBuilder::SelectDeviceType((SupportedDeviceType)options.OpenglRenderSetting);
 
     status.isMMXSupported = isMMXSupported();

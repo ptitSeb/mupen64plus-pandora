@@ -815,7 +815,6 @@ void OGLRender::DrawSimple2DTexture(float x0, float y0, float x1, float y1, floa
     GLboolean cullface = glIsEnabled(GL_CULL_FACE);
     glDisable(GL_CULL_FACE);
     OPENGL_CHECK_ERRORS;
-
     glViewportWrapper(0, windowSetting.statusBarHeightToUse, windowSetting.uDisplayWidth, windowSetting.uDisplayHeight);
     OPENGL_CHECK_ERRORS;
 
