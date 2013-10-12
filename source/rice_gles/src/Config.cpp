@@ -431,10 +431,16 @@ static void ReadConfiguration(void)
 {
     windowSetting.bDisplayFullscreen = ConfigGetParamBool(l_ConfigVideoGeneral, "Fullscreen");
     windowSetting.uDisplayWidth = ConfigGetParamInt(l_ConfigVideoGeneral, "ScreenWidth");
-#ifdef HAVE_GLES
-	if (windowSetting.uDisplayWidth==800)
-		windowSetting.uDisplayWidth = 640;	// no strech
-#endif
+	windowSetting.bDisplayRatio = true;
+	windowSetting.uDisplayX = 0;
+	windowSetting.uDisplayY = 0;
+    windowSetting.bDisplayRatio = ConfigGetParamBool(l_ConfigVideoGeneral, "AspectRatio");
+	if (windowSetting.bDisplayRatio) {
+		if (windowSetting.uDisplayWidth==800) {
+			windowSetting.uDisplayWidth = 640;	// no strech
+			windowSetting.uDisplayX = 80;
+		}
+	}
     windowSetting.uDisplayHeight = ConfigGetParamInt(l_ConfigVideoGeneral, "ScreenHeight");
     windowSetting.bVerticalSync = ConfigGetParamBool(l_ConfigVideoGeneral, "VerticalSync");
 
