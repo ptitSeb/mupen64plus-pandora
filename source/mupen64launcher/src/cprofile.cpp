@@ -278,7 +278,7 @@ int8_t CProfile::LoadPlugins()
 //        plugin.TextFile+=".txt";
 	// audios plugins
 	one.Name="Notaz Audio";
-	one.So="notaz-audio";
+	one.So="notaz_audio";
 	plugin.Plugins.push_back(one);
 	one.Name="SDL Audio";
 	one.So="mupen64plus-audio-sdl";
