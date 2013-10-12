@@ -1,0 +1,1500 @@
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/3dmath.cpp ./Glide64/3dmath.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/3dmath.cpp	2013-09-06 22:05:28.000000000 +0200
++++ ./Glide64/3dmath.cpp	2013-09-14 09:41:13.000000000 +0200
+@@ -202,15 +202,109 @@
+   }
+ }
+ 
++#ifdef __ARM_NEON__
++void MultMatrix_neon( float m0[4][4], float m1[4][4], float dest[4][4])
++{
++    asm volatile (
++	"vld1.32 		{d0, d1}, [%1]!			\n\t"	//q0 = m1
++	"vld1.32 		{d2, d3}, [%1]!	    	\n\t"	//q1 = m1+4
++	"vld1.32 		{d4, d5}, [%1]!	    	\n\t"	//q2 = m1+8
++	"vld1.32 		{d6, d7}, [%1]	    	\n\t"	//q3 = m1+12
++	"vld1.32 		{d16, d17}, [%0]!		\n\t"	//q8 = m0
++	"vld1.32 		{d18, d19}, [%0]!   	\n\t"	//q9 = m0+4
++	"vld1.32 		{d20, d21}, [%0]!   	\n\t"	//q10 = m0+8
++	"vld1.32 		{d22, d23}, [%0]    	\n\t"	//q11 = m0+12
++
++	"vmul.f32 		q12, q8, d0[0] 			\n\t"	//q12 = q8 * d0[0]
++	"vmul.f32 		q13, q8, d2[0] 		    \n\t"	//q13 = q8 * d2[0]
++	"vmul.f32 		q14, q8, d4[0] 		    \n\t"	//q14 = q8 * d4[0]
++	"vmul.f32 		q15, q8, d6[0]	 		\n\t"	//q15 = q8 * d6[0]
++	"vmla.f32 		q12, q9, d0[1] 			\n\t"	//q12 = q9 * d0[1]
++	"vmla.f32 		q13, q9, d2[1] 		    \n\t"	//q13 = q9 * d2[1]
++	"vmla.f32 		q14, q9, d4[1] 		    \n\t"	//q14 = q9 * d4[1]
++	"vmla.f32 		q15, q9, d6[1] 		    \n\t"	//q15 = q9 * d6[1]
++	"vmla.f32 		q12, q10, d1[0] 		\n\t"	//q12 = q10 * d0[0]
++	"vmla.f32 		q13, q10, d3[0] 		\n\t"	//q13 = q10 * d2[0]
++	"vmla.f32 		q14, q10, d5[0] 		\n\t"	//q14 = q10 * d4[0]
++	"vmla.f32 		q15, q10, d7[0] 		\n\t"	//q15 = q10 * d6[0]
++	"vmla.f32 		q12, q11, d1[1] 		\n\t"	//q12 = q11 * d0[1]
++	"vmla.f32 		q13, q11, d3[1] 		\n\t"	//q13 = q11 * d2[1]
++	"vmla.f32 		q14, q11, d5[1] 		\n\t"	//q14 = q11 * d4[1]
++	"vmla.f32 		q15, q11, d7[1]	 	    \n\t"	//q15 = q11 * d6[1]
++
++	"vst1.32 		{d24, d25}, [%2]! 		\n\t"	//d = q12
++	"vst1.32 		{d26, d27}, [%2]! 	    \n\t"	//d+4 = q13
++	"vst1.32 		{d28, d29}, [%2]! 	    \n\t"	//d+8 = q14
++	"vst1.32 		{d30, d31}, [%2] 	    \n\t"	//d+12 = q15
++
++	:"+r"(m0), "+r"(m1), "+r"(dest):
++    : "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
++    "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
++    "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31",
++    "memory"
++	);
++}
++
++void Normalize_neon(float v[3])
++{
++	asm volatile (
++	"vld1.32 		{d4}, [%0]!	    		\n\t"	//d4={x,y}
++	"flds    		s10, [%0]   	    	\n\t"	//d5[0] = z
++	"sub    		%0, %0, #8   	    	\n\t"	//d5[0] = z
++	"vmul.f32 		d0, d4, d4				\n\t"	//d0= d4*d4
++	"vpadd.f32 		d0, d0, d0				\n\t"	//d0 = d[0] + d[1]
++    "vmla.f32 		d0, d5, d5				\n\t"	//d0 = d0 + d5*d5
++
++	"vmov.f32 		d1, d0					\n\t"	//d1 = d0
++	"vrsqrte.f32 	d0, d0					\n\t"	//d0 = ~ 1.0 / sqrt(d0)
++	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
++	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d2) / 2
++	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d3
++	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
++	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d3) / 2
++	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d4
++
++	"vmul.f32 		q2, q2, d0[0]			\n\t"	//d0= d2*d4
++	"vst1.32 		{d4}, [%0]!  			\n\t"	//d2={x0,y0}, d3={z0, w0}
++	"fsts    		s10, [%0]     			\n\t"	//d2={x0,y0}, d3={z0, w0}
++
++	:"+r"(v) :
++    : "d0", "d1", "d2", "d3", "d4", "d5", "memory"
++	);
++}
++
++float DotProduct_neon( float v0[3], float v1[3] )
++{
++    float dot;
++	asm volatile (
++	"vld1.32 		{d8}, [%1]!			\n\t"	//d8={x0,y0}
++	"vld1.32 		{d10}, [%2]!		\n\t"	//d10={x1,y1}
++	"flds 			s18, [%1, #0]	    \n\t"	//d9[0]={z0}
++	"flds 			s22, [%2, #0]	    \n\t"	//d11[0]={z1}
++	"vmul.f32 		d12, d8, d10		\n\t"	//d0= d2*d4
++	"vpadd.f32 		d12, d12, d12		\n\t"	//d0 = d[0] + d[1]
++	"vmla.f32 		d12, d9, d11		\n\t"	//d0 = d0 + d3*d5
++    "fmrs	        %0, s24	    		\n\t"	//r0 = s0
++	: "=r"(dot), "+r"(v0), "+r"(v1):
++    : "d8", "d9", "d10", "d11", "d12"
++
++	);
++    return dot;
++}
++
++#endif
++
+ // 2008.03.29 H.Morii - added SSE 3DNOW! 3x3 1x3 matrix multiplication
+ //                      and 3DNOW! 4x4 4x4 matrix multiplication
+ // 2011-01-03 Balrog - removed because is in NASM format and not 64-bit compatible
+ // This will need fixing.
++#ifndef __ARM_NEON__
+ MULMATRIX MulMatrices = MulMatricesC;
+ TRANSFORMVECTOR TransformVector = TransformVectorC;
+ TRANSFORMVECTOR InverseTransformVector = InverseTransformVectorC;
+ DOTPRODUCT DotProduct = DotProductC;
+ NORMALIZEVECTOR NormalizeVector = NormalizeVectorC;
++#endif
+ 
+ void MulMatricesSSE(float m1[4][4],float m2[4][4],float r[4][4])
+ {
+@@ -361,6 +455,7 @@
+ 
+   void math_init()
+   {
++#ifndef __ARM_NEON__
+ #ifndef _DEBUG
+     int IsSSE = FALSE;
+ #if defined(__GNUC__) && !defined(NO_ASM) && !defined(NOSSE)
+@@ -429,4 +524,5 @@
+       }
+ 
+ #endif //_DEBUG
++#endif	//__ARM_NEON__
+     }
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/3dmath.h ./Glide64/3dmath.h
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/3dmath.h	2013-09-06 22:05:28.000000000 +0200
++++ ./Glide64/3dmath.h	2013-09-14 19:01:12.000000000 +0200
+@@ -42,7 +42,22 @@
+ void calc_sphere (VERTEX *v);
+ 
+ void math_init();
++#ifdef __ARM_NEON__
++float DotProductC(register float *v1, register float *v2);
++void NormalizeVectorC(float *v);
++void TransformVectorC(float *src, float *dst, float mat[4][4]);
++void InverseTransformVectorC (float *src, float *dst, float mat[4][4]);
++void MulMatricesC(float m1[4][4],float m2[4][4],float r[4][4]);
++void MultMatrix_neon( float m0[4][4], float m1[4][4], float dest[4][4]);
++void Normalize_neon(float v[3]);
++float DotProduct_neon( float v0[3], float v1[3] );
+ 
++#define MulMatrices				MulMatricesC		//MultMatrix_neon
++#define TransformVector			TransformVectorC
++#define InverseTransformVector	InverseTransformVectorC
++#define DotProduct				DotProductC			//DotProduct_neon
++#define NormalizeVector			NormalizeVectorC	//Normalize_neon
++#else
+ typedef void (*MULMATRIX)(float m1[4][4],float m2[4][4],float r[4][4]); 
+ extern MULMATRIX MulMatrices;
+ typedef void (*TRANSFORMVECTOR)(float *src,float *dst,float mat[4][4]); 
+@@ -52,3 +67,4 @@
+ extern DOTPRODUCT DotProduct;
+ typedef void (*NORMALIZEVECTOR)(float *v);
+ extern NORMALIZEVECTOR NormalizeVector;
++#endif
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/3dmathneon.cpp ./Glide64/3dmathneon.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/3dmathneon.cpp	1970-01-01 01:00:00.000000000 +0100
++++ ./Glide64/3dmathneon.cpp	2013-09-13 23:05:47.000000000 +0200
+@@ -0,0 +1,133 @@
++#include "3dmath.h"
++
++static void MultMatrix_neon( float m0[4][4], float m1[4][4], float dest[4][4])
++{
++    asm volatile (
++	"vld1.32 		{d0, d1}, [%1]!			\n\t"	//q0 = m1
++	"vld1.32 		{d2, d3}, [%1]!	    	\n\t"	//q1 = m1+4
++	"vld1.32 		{d4, d5}, [%1]!	    	\n\t"	//q2 = m1+8
++	"vld1.32 		{d6, d7}, [%1]	    	\n\t"	//q3 = m1+12
++	"vld1.32 		{d16, d17}, [%0]!		\n\t"	//q8 = m0
++	"vld1.32 		{d18, d19}, [%0]!   	\n\t"	//q9 = m0+4
++	"vld1.32 		{d20, d21}, [%0]!   	\n\t"	//q10 = m0+8
++	"vld1.32 		{d22, d23}, [%0]    	\n\t"	//q11 = m0+12
++
++	"vmul.f32 		q12, q8, d0[0] 			\n\t"	//q12 = q8 * d0[0]
++	"vmul.f32 		q13, q8, d2[0] 		    \n\t"	//q13 = q8 * d2[0]
++	"vmul.f32 		q14, q8, d4[0] 		    \n\t"	//q14 = q8 * d4[0]
++	"vmul.f32 		q15, q8, d6[0]	 		\n\t"	//q15 = q8 * d6[0]
++	"vmla.f32 		q12, q9, d0[1] 			\n\t"	//q12 = q9 * d0[1]
++	"vmla.f32 		q13, q9, d2[1] 		    \n\t"	//q13 = q9 * d2[1]
++	"vmla.f32 		q14, q9, d4[1] 		    \n\t"	//q14 = q9 * d4[1]
++	"vmla.f32 		q15, q9, d6[1] 		    \n\t"	//q15 = q9 * d6[1]
++	"vmla.f32 		q12, q10, d1[0] 		\n\t"	//q12 = q10 * d0[0]
++	"vmla.f32 		q13, q10, d3[0] 		\n\t"	//q13 = q10 * d2[0]
++	"vmla.f32 		q14, q10, d5[0] 		\n\t"	//q14 = q10 * d4[0]
++	"vmla.f32 		q15, q10, d7[0] 		\n\t"	//q15 = q10 * d6[0]
++	"vmla.f32 		q12, q11, d1[1] 		\n\t"	//q12 = q11 * d0[1]
++	"vmla.f32 		q13, q11, d3[1] 		\n\t"	//q13 = q11 * d2[1]
++	"vmla.f32 		q14, q11, d5[1] 		\n\t"	//q14 = q11 * d4[1]
++	"vmla.f32 		q15, q11, d7[1]	 	    \n\t"	//q15 = q11 * d6[1]
++
++	"vst1.32 		{d24, d25}, [%2]! 		\n\t"	//d = q12
++	"vst1.32 		{d26, d27}, [%2]! 	    \n\t"	//d+4 = q13
++	"vst1.32 		{d28, d29}, [%2]! 	    \n\t"	//d+8 = q14
++	"vst1.32 		{d30, d31}, [%2] 	    \n\t"	//d+12 = q15
++
++	:"+r"(m0), "+r"(m1), "+r"(dest):
++    : "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
++    "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
++    "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31",
++    "memory"
++	);
++}
++
++static void TransformVectorNormalize_neon(float vec[3], float mtx[4][4])
++{
++	asm volatile (
++	"vld1.32 		{d0}, [%1]  			\n\t"	//Q0 = v
++	"flds    		s2, [%1, #8]  			\n\t"	//Q0 = v
++	"vld1.32 		{d18, d19}, [%0]!		\n\t"	//Q1 = m
++	"vld1.32 		{d20, d21}, [%0]!	    \n\t"	//Q2 = m+4
++	"vld1.32 		{d22, d23}, [%0]	    \n\t"	//Q3 = m+8
++
++	"vmul.f32 		q2, q9, d0[0]			\n\t"	//q2 = q9*Q0[0]
++	"vmla.f32 		q2, q10, d0[1]			\n\t"	//Q5 += Q1*Q0[1]
++	"vmla.f32 		q2, q11, d1[0]			\n\t"	//Q5 += Q2*Q0[2]
++
++    "vmul.f32 		d0, d4, d4				\n\t"	//d0 = d0*d0
++	"vpadd.f32 		d0, d0, d0				\n\t"	//d0 = d[0] + d[1]
++    "vmla.f32 		d0, d5, d5				\n\t"	//d0 = d0 + d1*d1
++
++	"vmov.f32 		d1, d0					\n\t"	//d1 = d0
++	"vrsqrte.f32 	d0, d0					\n\t"	//d0 = ~ 1.0 / sqrt(d0)
++	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
++	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d2) / 2
++	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d3
++	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
++	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d3) / 2
++	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d4
++
++	"vmul.f32 		q2, q2, d0[0]			\n\t"	//d0= d2*d4
++
++	"vst1.32 		{d4}, [%1] 	    	    \n\t"	//Q4 = m+12
++	"fsts   		s10, [%1, #8] 	    	\n\t"	//Q4 = m+12
++	: "+r"(mtx): "r"(vec)
++    : "d0","d1","d2","d3","d18","d19","d20","d21","d22", "d23", "memory"
++	);
++}
++
++static void Normalize_neon(float v[3])
++{
++	asm volatile (
++	"vld1.32 		{d4}, [%0]!	    		\n\t"	//d4={x,y}
++	"flds    		s10, [%0]   	    	\n\t"	//d5[0] = z
++	"sub    		%0, %0, #8   	    	\n\t"	//d5[0] = z
++	"vmul.f32 		d0, d4, d4				\n\t"	//d0= d4*d4
++	"vpadd.f32 		d0, d0, d0				\n\t"	//d0 = d[0] + d[1]
++    "vmla.f32 		d0, d5, d5				\n\t"	//d0 = d0 + d5*d5
++
++	"vmov.f32 		d1, d0					\n\t"	//d1 = d0
++	"vrsqrte.f32 	d0, d0					\n\t"	//d0 = ~ 1.0 / sqrt(d0)
++	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
++	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d2) / 2
++	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d3
++	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
++	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d3) / 2
++	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d4
++
++	"vmul.f32 		q2, q2, d0[0]			\n\t"	//d0= d2*d4
++	"vst1.32 		{d4}, [%0]!  			\n\t"	//d2={x0,y0}, d3={z0, w0}
++	"fsts    		s10, [%0]     			\n\t"	//d2={x0,y0}, d3={z0, w0}
++
++	:"+r"(v) :
++    : "d0", "d1", "d2", "d3", "d4", "d5", "memory"
++	);
++}
++
++static float DotProduct_neon( float v0[3], float v1[3] )
++{
++    float dot;
++	asm volatile (
++	"vld1.32 		{d8}, [%1]!			\n\t"	//d8={x0,y0}
++	"vld1.32 		{d10}, [%2]!		\n\t"	//d10={x1,y1}
++	"flds 			s18, [%1, #0]	    \n\t"	//d9[0]={z0}
++	"flds 			s22, [%2, #0]	    \n\t"	//d11[0]={z1}
++	"vmul.f32 		d12, d8, d10		\n\t"	//d0= d2*d4
++	"vpadd.f32 		d12, d12, d12		\n\t"	//d0 = d[0] + d[1]
++	"vmla.f32 		d12, d9, d11		\n\t"	//d0 = d0 + d3*d5
++    "fmrs	        %0, s24	    		\n\t"	//r0 = s0
++	: "=r"(dot), "+r"(v0), "+r"(v1):
++    : "d8", "d9", "d10", "d11", "d12"
++
++	);
++    return dot;
++}
++
++void MathInitNeon()
++{
++    MulMatrices = MultMatrix_neon;
++    //TransformVectorNormalize = TransformVectorNormalize_neon;
++    NormalizeVector = Normalize_neon;
++    DotProduct = DotProduct_neon;
++}
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/Config.cpp ./Glide64/Config.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/Config.cpp	2013-09-06 22:05:29.000000000 +0200
++++ ./Glide64/Config.cpp	2013-09-07 10:51:27.000000000 +0200
+@@ -89,7 +89,7 @@
+   { 640, 480 },
+   { 800, 600 },
+   { 960, 720 },
+-  { 856, 480 },
++  { 800, 480 },
+   { 512, 256 },
+   { 1024, 768 },
+   { 1280, 1024 },
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/CRC.cpp ./Glide64/CRC.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/CRC.cpp	2013-09-06 22:05:28.000000000 +0200
++++ ./Glide64/CRC.cpp	2013-09-08 13:12:00.000000000 +0200
+@@ -43,6 +43,7 @@
+ //
+ //****************************************************************
+ //*
++
+ #define CRC32_POLYNOMIAL     0x04C11DB7
+ 
+ unsigned int CRCTable[ 256 ];
+@@ -140,3 +141,4 @@
+    return Crc32;
+ }
+ //*/
++
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/FBtoScreen.cpp ./Glide64/FBtoScreen.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/FBtoScreen.cpp	2013-09-06 22:05:29.000000000 +0200
++++ ./Glide64/FBtoScreen.cpp	2013-09-08 11:57:33.000000000 +0200
+@@ -165,12 +165,15 @@
+     for (wxUint32 w = 0; w < 256; w++)
+     {
+       col = *(src++);
+-      r = (wxUint8)((col >> 24)&0xFF);
++      r = (wxUint8)((col >> (24+3))&0x1F);
++      g = (wxUint8)((col >> (16+2))&0x3F);
++      b = (wxUint8)((col >>  (8+3))&0x1F);
++/*      r = (wxUint8)((col >> 24)&0xFF);
+       r = (wxUint8)((float)r / 255.0f * 31.0f);
+       g = (wxUint8)((col >> 16)&0xFF);
+       g = (wxUint8)((float)g / 255.0f * 63.0f);
+       b = (wxUint8)((col >>  8)&0xFF);
+-      b = (wxUint8)((float)b / 255.0f * 31.0f);
++      b = (wxUint8)((float)b / 255.0f * 31.0f);*/	//*SEB*
+       *(dst++) = (r << 11) | (g << 5) | b;
+     }
+     src += (fb_info.width - 256);
+@@ -261,12 +264,15 @@
+             if (idx >= bound)
+               break;
+             c32 = src32[idx];
+-            r = (wxUint8)((c32 >> 24)&0xFF);
++            r = (wxUint8)((c32 >> (24+3))&0x1F);
++            g = (wxUint8)((c32 >> (16+2))&0x3F);
++            b = (wxUint8)((c32 >>  (8+3))&0x1F);
++/*            r = (wxUint8)((c32 >> 24)&0xFF);
+             r = (wxUint8)((float)r / 255.0f * 31.0f);
+             g = (wxUint8)((c32 >> 16)&0xFF);
+             g = (wxUint8)((float)g / 255.0f * 63.0f);
+             b = (wxUint8)((c32 >>  8)&0xFF);
+-            b = (wxUint8)((float)b / 255.0f * 31.0f);
++            b = (wxUint8)((float)b / 255.0f * 31.0f);*/	//*SEB*
+             a = (c32&0xFF) ? 1 : 0;
+             *(dst++) = (a<<15) | (r << 10) | (g << 5) | b;
+           }
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/Gfx_1.3.h ./Glide64/Gfx_1.3.h
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/Gfx_1.3.h	2013-09-06 22:05:29.000000000 +0200
++++ ./Glide64/Gfx_1.3.h	2013-09-08 16:22:57.000000000 +0200
+@@ -106,6 +106,8 @@
+ // ** TAKE OUT BEFORE RELEASE!!! **
+ //#define LOGGING			// log of spec functions called
+ //#define LOG_KEY			// says "Key!!!" in the log when space bar is pressed
++//#define EXT_LOGGING
++//#define PERFORMANCE
+ 
+ //#define LOG_UCODE
+ 
+@@ -120,15 +122,15 @@
+ 
+ #define FPS					// fps counter able? (not enabled necessarily)
+ 
+-#define LOGNOTKEY			 // Log if not pressing:
+-#define LOGKEY		0x11 // this key (CONTROL)
++//#define LOGNOTKEY			 // Log if not pressing:
++//#define LOGKEY		0x11 // this key (CONTROL)
+ 
+ //#define LOG_COMMANDS		// log the whole 64-bit command as (0x........, 0x........)
+ 
+ #define CATCH_EXCEPTIONS	// catch exceptions so it doesn't freeze and will report
+ 							// "The gfx plugin has caused an exception" instead.
+ 
+-#define FLUSH				// flush the file buffer. slower logging, but makes sure
++//#define FLUSH				// flush the file buffer. slower logging, but makes sure
+ 							//  the command is logged before continuing (in case of
+ 							//  crash or exception, the log will not be cut short)
+ #ifndef _ENDUSER_RELEASE_
+@@ -144,7 +146,7 @@
+ 
+ 
+ // Usually enabled
+-#define LARGE_TEXTURE_HANDLING	// allow large-textured objects to be split?
++//#define LARGE_TEXTURE_HANDLING	// allow large-textured objects to be split?
+ 
+ #ifdef ALTTAB_FIX
+ extern HHOOK hhkLowLevelKybd;
+@@ -189,7 +191,6 @@
+ 
+ int CheckKeyPressed(int key, int mask);
+ 
+-//#define PERFORMANCE
+ #ifdef PERFORMANCE
+ extern int64 perf_cur;
+ extern int64 perf_next;
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/Main.cpp ./Glide64/Main.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/Main.cpp	2013-09-06 22:05:29.000000000 +0200
++++ ./Glide64/Main.cpp	2013-09-15 17:06:29.000000000 +0200
+@@ -170,7 +170,7 @@
+ // 60=0x0, 70=0x1, 72=0x2, 75=0x3, 80=0x4, 90=0x5, 100=0x6, 85=0x7, 120=0x8, none=0xff
+ 
+ #ifdef PAULSCODE
+-#include "ae_bridge.h"
++//#include "ae_bridge.h"
+ #include "FrameSkipper.h"
+ FrameSkipper frameSkipper;
+ #endif
+@@ -1768,12 +1768,13 @@
+ EXPORT void CALL RomClosed (void)
+ {
+   VLOG ("RomClosed ()\n");
++printf("RomClosed ()\n");
+ 
+   CLOSE_RDP_LOG ();
+   CLOSE_RDP_E_LOG ();
+   rdp.window_changed = TRUE;
+   romopen = FALSE;
+-  if (fullscreen && evoodoo)
++//  if (fullscreen && evoodoo)//*SEB*
+     ReleaseGfx ();
+ }
+ 
+@@ -1973,9 +1974,6 @@
+ wxUint32 update_screen_count = 0;
+ EXPORT void CALL UpdateScreen (void)
+ {
+-#ifdef PAULSCODE
+-  frameSkipper.update();
+-#endif
+ #ifdef LOG_KEY
+   if (CheckKeyPressed(G64_VK_SPACE, 0x0001))
+   {
+@@ -2020,6 +2018,9 @@
+     no_dlist = true;
+     ClearCache ();
+     UpdateScreen();
++#ifdef PAULSCODE
++  frameSkipper.update();
++#endif
+     return;
+   }
+   //*/
+@@ -2035,11 +2036,17 @@
+       rdp.updatescreen = 1;
+       newSwapBuffers ();
+     }
++#ifdef PAULSCODE
++  frameSkipper.update();
++#endif
+     return;
+   }
+   //*/
+   if (settings.swapmode == 0)
+     newSwapBuffers ();
++#ifdef PAULSCODE
++  frameSkipper.update();
++#endif
+ }
+ 
+ static void DrawWholeFrameBufferToScreen()
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/rdp.cpp ./Glide64/rdp.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/rdp.cpp	2013-09-06 22:05:29.000000000 +0200
++++ ./Glide64/rdp.cpp	2013-09-13 22:23:52.000000000 +0200
+@@ -56,6 +56,10 @@
+ extern FrameSkipper frameSkipper;
+ #endif
+ 
++#ifdef PERFORMANCE
++#include "ticks.h"
++#endif
++
+ /*
+ const int NumOfFormats = 3;
+ SCREEN_SHOT_FORMAT ScreenShotFormats[NumOfFormats] = { {wxT("BMP"), wxT("bmp"), wxBITMAP_TYPE_BMP}, {wxT("PNG"), wxT("png"), wxBITMAP_TYPE_PNG}, {wxT("JPEG"), wxT("jpeg"), wxBITMAP_TYPE_JPEG} };
+@@ -633,18 +637,21 @@
+ 
+ EXPORT void CALL ProcessDList(void)
+ {
+-  SoftLocker lock(mutexProcessDList);
++//  SoftLocker lock(mutexProcessDList);
+ #ifdef PAULSCODE
+-  if (frameSkipper.willSkipNext() || !lock.IsOk()) //mutex is busy
++  if (frameSkipper.willSkipNext() /*|| !lock.IsOk()*/) //mutex is busy
+ #else
+-  if (!lock.IsOk()) //mutex is busy
++  if (/*!lock.IsOk()*/0) //mutex is busy
+ #endif
+   {
++// printf("Frameskip, reason=%s\n", (lock.IsOk())?"lock":"frameskip");
+     if (!fullscreen)
+       drawNoFullscreenMessage();
+     // Set an interrupt to allow the game to continue
+     *gfx.MI_INTR_REG |= 0x20;
+     gfx.CheckInterrupts();
++	*gfx.MI_INTR_REG |= 0x01;
++	gfx.CheckInterrupts();
+     return;
+   }
+ 
+@@ -717,7 +724,18 @@
+     unimp.close();
+   }
+ #endif
+-
++/*
++#ifdef PAULSCODE
++  if (frameSkipper.willSkipNext())
++  {
++	*gfx.MI_INTR_REG |= 0x20;
++	gfx.CheckInterrupts();
++	*gfx.MI_INTR_REG |= 0x01;
++	gfx.CheckInterrupts();
++	return;
++  }
++#endif
++*/
+   //* Set states *//
+   if (settings.swapmode > 0)
+     SwapOK = TRUE;
+@@ -818,7 +836,7 @@
+         rdp.pc[rdp.pc_i] = (a+8) & BMASK;
+ 
+ #ifdef PERFORMANCE
+-        perf_cur = wxDateTime::UNow();
++        perf_cur = ticksGetTicks();
+ #endif
+         // Process this instruction
+         gfx_instruction[settings.ucode][rdp.cmd0>>24] ();
+@@ -837,9 +855,13 @@
+         }
+ 
+ #ifdef PERFORMANCE
+-        perf_next = wxDateTime::UNow();
+-        sprintf (out_buf, "perf %08lx: %016I64d\n", a-8, (perf_next-perf_cur).Format(_T("%l")).mb_str());
++        perf_next = ticksGetTicks();
++        sprintf (out_buf, "perf %08x: %lli\n", a-8, (perf_next-perf_cur));
++#ifdef RDP_LOGGING
+         rdp_log << out_buf;
++#else
++		printf(out_buf);
++#endif
+ #endif
+ 
+       } while (!rdp.halt);
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/Util.cpp ./Glide64/Util.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glide64/Util.cpp	2013-09-06 22:05:29.000000000 +0200
++++ ./Glide64/Util.cpp	2013-09-08 12:39:52.000000000 +0200
+@@ -289,29 +289,29 @@
+   deltaZ = dzdx = 0;
+   if (linew == 0 && (fb_depth_render_enabled || (rdp.rm & 0xC00) == 0xC00))
+   {
+-    double X0 = vtx[0]->sx / rdp.scale_x;
+-    double Y0 = vtx[0]->sy / rdp.scale_y;
+-    double X1 = vtx[1]->sx / rdp.scale_x;
+-    double Y1 = vtx[1]->sy / rdp.scale_y;
+-    double X2 = vtx[2]->sx / rdp.scale_x;
+-    double Y2 = vtx[2]->sy / rdp.scale_y;
+-    double diffy_02 = Y0 - Y2;
+-    double diffy_12 = Y1 - Y2;
+-    double diffx_02 = X0 - X2;
+-    double diffx_12 = X1 - X2;
+-
+-    double denom = (diffx_02 * diffy_12 - diffx_12 * diffy_02);
+-    if(denom*denom > 0.0)
+-    {
+-      double diffz_02 = vtx[0]->sz - vtx[2]->sz;
+-      double diffz_12 = vtx[1]->sz - vtx[2]->sz;
+-      double fdzdx = (diffz_02 * diffy_12 - diffz_12 * diffy_02) / denom;
++    float X0 = vtx[0]->sx / rdp.scale_x;
++    float Y0 = vtx[0]->sy / rdp.scale_y;
++    float X1 = vtx[1]->sx / rdp.scale_x;
++    float Y1 = vtx[1]->sy / rdp.scale_y;
++    float X2 = vtx[2]->sx / rdp.scale_x;
++    float Y2 = vtx[2]->sy / rdp.scale_y;
++    float diffy_02 = Y0 - Y2;
++    float diffy_12 = Y1 - Y2;
++    float diffx_02 = X0 - X2;
++    float diffx_12 = X1 - X2;
++
++    float denom = (diffx_02 * diffy_12 - diffx_12 * diffy_02);
++    if(denom*denom > 0.0f)
++    {
++      float diffz_02 = vtx[0]->sz - vtx[2]->sz;
++      float diffz_12 = vtx[1]->sz - vtx[2]->sz;
++      float fdzdx = (diffz_02 * diffy_12 - diffz_12 * diffy_02) / denom;
+       if ((rdp.rm & 0xC00) == 0xC00) {
+         // Calculate deltaZ per polygon for Decal z-mode
+-        double fdzdy = (diffz_02 * diffx_12 - diffz_12 * diffx_02) / denom;
+-        double fdz = fabs(fdzdx) + fabs(fdzdy);
++        float fdzdy = (diffz_02 * diffx_12 - diffz_12 * diffx_02) / denom;
++        float fdz = fabs(fdzdx) + fabs(fdzdy);
+         if ((settings.hacks & hack_Zelda) && (rdp.rm & 0x800))
+-          fdz *= 4.0;  // Decal mode in Zelda sometimes needs mutiplied deltaZ to work correct, e.g. roads
++          fdz *= 4.0f;  // Decal mode in Zelda sometimes needs mutiplied deltaZ to work correct, e.g. roads
+         deltaZ = max(8, (int)fdz);
+       }
+       dzdx = (int)(fdzdx * 65536.0);
+@@ -881,12 +881,12 @@
+ //*/
+ 
+ typedef struct {
+-  double d;
+-  double x;
+-  double y;
++  float d;		//*SEB* was doubles
++  float x;
++  float y;
+ } LineEuqationType;
+ 
+-static double EvaLine(LineEuqationType &li, double x, double y)
++static float EvaLine(LineEuqationType &li, float x, float y)	//*SEB* all double before
+ {
+   return li.x*x+li.y*y+li.d;
+ }
+@@ -906,7 +906,7 @@
+ }
+ 
+ 
+-__inline double interp3p(float a, float b, float c, double r1, double r2)
++__inline float interp3p(float a, float b, float c, float r1, float r2)	//*SEB* r1 and r2 and function was double
+ {
+   return (a)+(((b)+((c)-(b))*(r2))-(a))*(r1);
+ }
+@@ -915,34 +915,34 @@
+   (a+(((b)+((c)-(b))*(r2))-(a))*(r1))
+ */
+ 
+-static void InterpolateColors3(VERTEX &v1, VERTEX &v2, VERTEX &v3, VERTEX &out)
++static void InterpolateColors3(VERTEX &v1, VERTEX &v2, VERTEX &v3, VERTEX &out)	//*SEB* all double before
+ {
+ 
+   LineEuqationType line;
+   Create1LineEq(line, v2, v3, v1);
+ 
+-  double aDot = (out.x*line.x + out.y*line.y);
+-  double bDot = (v1.sx*line.x + v1.sy*line.y);
++  float aDot = (out.x*line.x + out.y*line.y);
++  float bDot = (v1.sx*line.x + v1.sy*line.y);
+ 
+-  double scale1 = ( - line.d - aDot) / ( bDot - aDot );
++  float scale1 = ( - line.d - aDot) / ( bDot - aDot );
+ 
+-  double tx = out.x + scale1 * (v1.sx - out.x);
+-  double ty = out.y + scale1 * (v1.sy - out.y);
++  float tx = out.x + scale1 * (v1.sx - out.x);
++  float ty = out.y + scale1 * (v1.sy - out.y);
+ 
+-  double s1 = 101.0, s2 = 101.0;
+-  double den = tx - v1.sx;
+-  if (fabs(den) > 1.0)
++  float s1 = 101.0, s2 = 101.0;
++  float den = tx - v1.sx;
++  if (fabsf(den) > 1.0)
+     s1 = (out.x-v1.sx)/den;
+   if (s1 > 100.0f)
+     s1 = (out.y-v1.sy)/(ty-v1.sy);
+ 
+   den = v3.sx - v2.sx;
+-  if (fabs(den) > 1.0)
++  if (fabsf(den) > 1.0)
+     s2 = (tx-v2.sx)/den;
+   if (s2 > 100.0f)
+     s2 =(ty-v2.sy)/(v3.sy-v2.sy);
+ 
+-  double w = 1.0/interp3p(v1.oow,v2.oow,v3.oow,s1,s2);
++  float w = 1.0/interp3p(v1.oow,v2.oow,v3.oow,s1,s2);
+ 
+   out.r = real_to_char(interp3p(v1.r*v1.oow,v2.r*v2.oow,v3.r*v3.oow,s1,s2)*w);
+   out.g = real_to_char(interp3p(v1.g*v1.oow,v2.g*v2.oow,v3.g*v3.oow,s1,s2)*w);
+@@ -976,8 +976,8 @@
+   */
+   float deltaS, deltaT;
+   float deltaX, deltaY;
+-  double deltaTexels, deltaPixels, lodFactor = 0;
+-  double intptr;
++  float deltaTexels, deltaPixels, lodFactor = 0;	//*SEB* double before
++  float intptr;										//*SEB* double before
+   float s_scale = rdp.tiles[rdp.cur_tile].width / 255.0f;
+   float t_scale = rdp.tiles[rdp.cur_tile].height / 255.0f;
+   if (settings.lodmode == 1)
+@@ -1019,7 +1019,7 @@
+   float lod_fraction = 1.0f;
+   if (lod_tile < rdp.cur_tile + rdp.mipmap_level)
+   {
+-  	lod_fraction = max((float)modf(lodFactor / pow(2.,lod_tile),&intptr), rdp.prim_lodmin / 255.0f);
++  	lod_fraction = max((float)modff(lodFactor / powf(2.,lod_tile),&intptr), (float)rdp.prim_lodmin / 255.0f);
+   }
+   float detailmax;
+   if (cmb.dc0_detailmax < 0.5f)
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/GlideHQ/TxDbg.cpp ./GlideHQ/TxDbg.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/GlideHQ/TxDbg.cpp	2013-09-06 22:05:30.000000000 +0200
++++ ./GlideHQ/TxDbg.cpp	2013-09-07 12:06:11.000000000 +0200
+@@ -28,6 +28,8 @@
+ #include <stdarg.h>
+ #include <string>
+ 
++#define _GLIBCXX_HAVE_BROKEN_VSWPRINTF	1
++
+ TxDbg::TxDbg()
+ {
+   _level = DBG_LEVEL;
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glitch64/combiner.cpp ./Glitch64/combiner.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glitch64/combiner.cpp	2013-09-06 22:05:30.000000000 +0200
++++ ./Glitch64/combiner.cpp	2013-09-14 10:16:36.000000000 +0200
+@@ -29,6 +29,8 @@
+ #include "glide.h"
+ #include "main.h"
+ 
++#define GLchar	char
++
+ void vbo_draw();
+ 
+ static int fct[4], source0[4], operand0[4], source1[4], operand1[4], source2[4], operand2[4];
+@@ -117,10 +119,11 @@
+ // using gl_FragCoord is terribly slow on ATI and varying variables don't work for some unknown
+ // reason, so we use the unused components of the texture2 coordinates
+ static const char* fragment_shader_dither =
+-"  float dithx = (gl_TexCoord[2].b + 1.0)*0.5*1000.0; \n"
++" \n"
++/*"  float dithx = (gl_TexCoord[2].b + 1.0)*0.5*1000.0; \n"
+ "  float dithy = (gl_TexCoord[2].a + 1.0)*0.5*1000.0; \n"
+ "  if(texture2D(ditherTex, vec2((dithx-32.0*floor(dithx/32.0))/32.0, \n"
+-"                               (dithy-32.0*floor(dithy/32.0))/32.0)).a > 0.5) discard; \n"
++"                               (dithy-32.0*floor(dithy/32.0))/32.0)).a > 0.5) discard; \n"*/
+ ;
+ 
+ static const char* fragment_shader_default =
+@@ -165,11 +168,16 @@
+ "}                               \n"
+ ;
+ 
++static const char* fragment_shader_alt_end =
++"                                \n"
++"}                               \n"
++;
++
+ static const char* vertex_shader =
+ SHADER_HEADER
+ "#define Z_MAX 65536.0                                          \n"
+ "attribute highp vec4 aVertex;                                  \n"
+-"attribute highp vec4 aColor;                                   \n"
++"attribute mediump vec4 aColor;                                   \n"	//*SEB* highp -> lowp
+ "attribute highp vec4 aMultiTexCoord0;                          \n"
+ "attribute highp vec4 aMultiTexCoord1;                          \n"
+ "attribute float aFog;                                          \n"
+@@ -245,7 +253,7 @@
+ 
+   // creating a fake texture
+   glBindTexture(GL_TEXTURE_2D, default_texture);
+-  glTexImage2D(GL_TEXTURE_2D, 0, 3, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+ 
+@@ -286,7 +294,7 @@
+     strlen(fragment_shader_end)+1);
+   strcpy(fragment_shader, fragment_shader_header);
+   strcat(fragment_shader, fragment_shader_default);
+-  strcat(fragment_shader, fragment_shader_end);
++  strcat(fragment_shader, fragment_shader_end);	/*SEB*/
+   glShaderSource(fragment_shader_object, 1, (const GLchar**)&fragment_shader, NULL);
+   free(fragment_shader);
+ 
+@@ -408,6 +416,7 @@
+   int dither_enabled;
+   int blackandwhite0;
+   int blackandwhite1;
++  int alpha_test;			//*SEB*
+   GLuint fragment_shader_object;
+   GLuint program_object;
+   int texture0_location;
+@@ -489,6 +498,8 @@
+   int i;
+   int chroma_color_location;
+   int log_length;
++  
++  int noalpha;
+ 
+   need_to_compile = 0;
+ 
+@@ -502,6 +513,7 @@
+       prog.texture0_combinera == texture0_combinera_key &&
+       prog.texture1_combinera == texture1_combinera_key &&
+       prog.fog_enabled == fog_enabled &&
++	  prog.alpha_test == alpha_test &&				//*SEB*
+       prog.chroma_enabled == chroma_enabled &&
+       prog.dither_enabled == dither_enabled &&
+       prog.blackandwhite0 == blackandwhite0 &&
+@@ -514,11 +526,13 @@
+     }
+   }
+ 
+-  if(shader_programs != NULL)
+-    shader_programs = (shader_program_key*)realloc(shader_programs, (number_of_programs+1)*sizeof(shader_program_key));
++  if(shader_programs != NULL) {
++	if ((number_of_programs+1)>1024)
++		shader_programs = (shader_program_key*)realloc(shader_programs, (number_of_programs+1)*sizeof(shader_program_key));
++  }
+   else
+-    shader_programs = (shader_program_key*)malloc(sizeof(shader_program_key));
+-  //printf("number of shaders %d\n", number_of_programs);
++    shader_programs = (shader_program_key*)malloc(sizeof(shader_program_key)*1024);
++	//printf("number of shaders %d\n", number_of_programs);
+ 
+   shader_programs[number_of_programs].color_combiner = color_combiner_key;
+   shader_programs[number_of_programs].alpha_combiner = alpha_combiner_key;
+@@ -531,6 +545,7 @@
+   shader_programs[number_of_programs].dither_enabled = dither_enabled;
+   shader_programs[number_of_programs].blackandwhite0 = blackandwhite0;
+   shader_programs[number_of_programs].blackandwhite1 = blackandwhite1;
++  shader_programs[number_of_programs].alpha_test = alpha_test;		//*SEB*
+ 
+   if(chroma_enabled)
+   {
+@@ -557,7 +572,10 @@
+   strcat(fragment_shader, fragment_shader_color_combiner);
+   strcat(fragment_shader, fragment_shader_alpha_combiner);
+   if(fog_enabled) strcat(fragment_shader, fragment_shader_fog);
+-  strcat(fragment_shader, fragment_shader_end);
++  if (alpha_test)
++		strcat(fragment_shader, fragment_shader_end);
++  else
++		strcat(fragment_shader, fragment_shader_alt_end);		//*SEB*
+   if(chroma_enabled) strcat(fragment_shader, fragment_shader_chroma);
+ 
+   shader_programs[number_of_programs].fragment_shader_object = glCreateShader(GL_FRAGMENT_SHADER);
+@@ -1719,7 +1737,7 @@
+   glActiveTexture(GL_TEXTURE2);
+   glEnable(GL_TEXTURE_2D);
+   glBindTexture(GL_TEXTURE_2D, 33*1024*1024);
+-  glTexImage2D(GL_TEXTURE_2D, 0, 4, 32, 32, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 32, 32, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+   glDisable(GL_TEXTURE_2D);
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glitch64/geometry.cpp ./Glitch64/geometry.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glitch64/geometry.cpp	2013-09-06 22:05:30.000000000 +0200
++++ ./Glitch64/geometry.cpp	2013-09-12 22:13:33.000000000 +0200
+@@ -34,7 +34,7 @@
+ #define VERTEX_SIZE sizeof(VERTEX) //Size of vertex struct
+ 
+ #ifdef PAULSCODE
+-#include "ae_bridge.h"
++//#include "ae_bridge.h"
+ static float polygonOffsetFactor;
+ static float polygonOffsetUnits;
+ #endif
+@@ -338,8 +338,11 @@
+ void FindBestDepthBias()
+ {
+ #ifdef PAULSCODE
+-  int hardwareType = Android_JNI_GetHardwareType();
+-  Android_JNI_GetPolygonOffset(hardwareType, 1, &polygonOffsetFactor, &polygonOffsetUnits);
++/*  int hardwareType = Android_JNI_GetHardwareType();
++  Android_JNI_GetPolygonOffset(hardwareType, 1, &polygonOffsetFactor, &polygonOffsetUnits);*/
++//  glPolygonOffset(0.2f, 0.2f);
++	polygonOffsetFactor=0.2f;
++	polygonOffsetUnits=0.2f;
+ #else
+   float f, bestz = 0.25f;
+   int x;
+@@ -386,7 +389,11 @@
+   if (level)
+   {
+     #ifdef PAULSCODE
+-    glPolygonOffset(polygonOffsetFactor, polygonOffsetUnits);
++//    glPolygonOffset(polygonOffsetFactor, polygonOffsetUnits);
++    if(w_buffer_mode)
++      glPolygonOffset(1.0f, -(float)level*polygonOffsetUnits);
++    else
++      glPolygonOffset(0, (float)level*3.0f);
+     #else
+     if(w_buffer_mode)
+       glPolygonOffset(1.0f, -(float)level*zscale/255.0f);
+@@ -408,13 +415,13 @@
+ grDrawTriangle( const void *a, const void *b, const void *c )
+ {
+   LOG("grDrawTriangle()\r\n\t");
+-  
++/*  
+   if(nvidia_viewport_hack && !render_to_texture)
+   {
+     glViewport(0, viewport_offset, viewport_width, viewport_height);
+     nvidia_viewport_hack = 0;
+   }
+-
++*/
+   reloadTexture();
+ 
+   if(need_to_compile) compile_shader();
+@@ -588,13 +595,13 @@
+ {
+   void **pointers = (void**)pointers2;
+   LOG("grDrawVertexArray(%d,%d)\r\n", mode, Count);
+-
++/*
+   if(nvidia_viewport_hack && !render_to_texture)
+   {
+     glViewport(0, viewport_offset, viewport_width, viewport_height);
+     nvidia_viewport_hack = 0;
+   }
+-
++*/
+   reloadTexture();
+ 
+   if(need_to_compile) compile_shader();
+@@ -612,13 +619,13 @@
+ grDrawVertexArrayContiguous(FxU32 mode, FxU32 Count, void *pointers, FxU32 stride)
+ {
+   LOG("grDrawVertexArrayContiguous(%d,%d,%d)\r\n", mode, Count, stride);
+-
++/*
+   if(nvidia_viewport_hack && !render_to_texture)
+   {
+     glViewport(0, viewport_offset, viewport_width, viewport_height);
+     nvidia_viewport_hack = 0;
+   }
+-
++*/
+   if(stride != 156)
+   {
+ 	  LOGINFO("Incompatible stride\n");
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glitch64/glitchmain.cpp ./Glitch64/glitchmain.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glitch64/glitchmain.cpp	2013-09-06 22:05:30.000000000 +0200
++++ ./Glitch64/glitchmain.cpp	2013-09-15 17:13:49.000000000 +0200
+@@ -656,6 +656,9 @@
+ #ifdef _WIN32
+   glCompressedTexImage2DARB = (PFNGLCOMPRESSEDTEXIMAGE2DPROC)wglGetProcAddress("glCompressedTexImage2DARB");
+ #endif
++/*SEB*/
++  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
++  glPixelStorei(GL_PACK_ALIGNMENT, 1);
+ 
+ 
+ #ifdef _WIN32
+@@ -806,6 +809,7 @@
+     fullscreen = 0;
+   }
+ #else
++  CoreVideo_Quit();
+   //SDL_QuitSubSystem(SDL_INIT_VIDEO);
+   //sleep(2);
+ #endif
+@@ -823,7 +827,7 @@
+   int i;
+   static int fbs_init = 0;
+ 
+-  //printf("grTextureBufferExt(%d, %d, %d, %d, %d, %d, %d)\r\n", tmu, startAddress, lodmin, lodmax, aspect, fmt, evenOdd);
++	//printf("grTextureBufferExt(%d, %d, %d, %d, %d, %d, %d)\r\n", tmu, startAddress, lodmin, lodmax, aspect, fmt, evenOdd);
+   LOG("grTextureBufferExt(%d, %d, %d, %d %d, %d, %d)\r\n", tmu, startAddress, lodmin, lodmax, aspect, fmt, evenOdd);
+   if (lodmin != lodmax) display_warning("grTextureBufferExt : loading more than one LOD");
+   if (!use_fbo) {
+@@ -907,8 +911,8 @@
+       tmu_usage[rtmu].min = pBufferAddress;
+     if ((unsigned int) tmu_usage[rtmu].max < pBufferAddress+size)
+       tmu_usage[rtmu].max = pBufferAddress+size;
+-    //   printf("tmu %d usage now %gMb - %gMb\n",
+-    //          rtmu, tmu_usage[rtmu].min/1024.0f, tmu_usage[rtmu].max/1024.0f);
++	//printf("tmu %d usage now %gMb - %gMb\n",
++    //      rtmu, tmu_usage[rtmu].min/1024.0f, tmu_usage[rtmu].max/1024.0f);
+ 
+ 
+     width = pBufferWidth;
+@@ -927,14 +931,14 @@
+     texbufs[i].fmt = fmt;
+     if (i == texbuf_i)
+       texbuf_i = (texbuf_i+1)&(NB_TEXBUFS-1);
+-    //printf("texbuf %x fmt %x\n", pBufferAddress, fmt);
++	//printf("texbuf %x fmt %x\n", pBufferAddress, fmt);
+ 
+     // ZIGGY it speeds things up to not delete the buffers
+     // a better thing would be to delete them *sometimes*
+     //   remove_tex(pBufferAddress+1, pBufferAddress + size);
+     add_tex(pBufferAddress);
+ 
+-    //printf("viewport %dx%d\n", width, height);
++	//printf("viewport %dx%d\n", width, height);
+     if (height > screen_height) {
+       glViewport( 0, viewport_offset + screen_height - height, width, height);
+     } else
+@@ -1009,7 +1013,6 @@
+         }
+       }
+     }
+-
+     remove_tex(pBufferAddress, pBufferAddress + width*height*2/*grTexFormatSize(fmt)*/);
+     //create new FBO
+     glGenFramebuffers( 1, &(fbs[nb_fb].fbid) );
+@@ -1768,6 +1771,7 @@
+           GrLfbInfo_t *info )
+ {
+   LOG("grLfbLock(%d,%d,%d,%d,%d)\r\n", type, buffer, writeMode, origin, pixelPipeline);
++//printf("grLfbLock(%d,%d,%d,%d,%d)\r\n", type, buffer, writeMode, origin, pixelPipeline);
+   if (type == GR_LFB_WRITE_ONLY)
+   {
+     display_warning("grLfbLock : write only");
+@@ -1792,12 +1796,32 @@
+     if(buffer != GR_BUFFER_AUXBUFFER)
+     {
+       if (writeMode == GR_LFBWRITEMODE_888) {
++/*SEB*/
++        buf = (unsigned char*)malloc(width*height*4);
+         //printf("LfbLock GR_LFBWRITEMODE_888\n");
+         info->lfbPtr = frameBuffer;
+         info->strideInBytes = width*4;
+         info->writeMode = GR_LFBWRITEMODE_888;
+         info->origin = origin;
+         //glReadPixels(0, viewport_offset, width, height, GL_BGRA, GL_UNSIGNED_BYTE, frameBuffer);
++        glReadPixels(0, viewport_offset, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
++
++/*SEB*/
++	    unsigned char *p=buf;
++        for (j=0; j<height; j++)
++        {
++	    short unsigned int *f=frameBuffer+(height-j-1)*width;
++          for (i=0; i<width; i++)
++          {
++            *(f++) =
++              (*(p)   <<24) |
++              (*(p+1) <<16) |
++              (*(p+2) << 8) |
++	          (0xff);
++              p+=4;
++          }
++        }
++        free(buf);
+       } else {
+         buf = (unsigned char*)malloc(width*height*4);
+ 
+@@ -1807,14 +1831,22 @@
+         info->origin = origin;
+         glReadPixels(0, viewport_offset, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+ 
++/*SEB*/
++	    unsigned char *p=buf;
+         for (j=0; j<height; j++)
+         {
++	      short unsigned int *f=frameBuffer+(height-j-1)*width;
+           for (i=0; i<width; i++)
+           {
+-            frameBuffer[(height-j-1)*width+i] =
++/*            frameBuffer[(height-j-1)*width+i] =
+               ((buf[j*width*4+i*4+0] >> 3) << 11) |
+               ((buf[j*width*4+i*4+1] >> 2) <<  5) |
+-              (buf[j*width*4+i*4+2] >> 3);
++              (buf[j*width*4+i*4+2] >> 3);*/
++            *(f++) =
++              ((*(p)   >> 3) << 11) |
++              ((*(p+1) >> 2) <<  5) |
++              (*(p+2)  >> 3);
++              p+=4;
+           }
+         }
+         free(buf);
+@@ -1826,6 +1858,7 @@
+       info->strideInBytes = width*2;
+       info->writeMode = GR_LFBWRITEMODE_ZA16;
+       info->origin = origin;
++      //*SEB* *TODO* check alignment
+       glReadPixels(0, viewport_offset, width, height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, depthBuffer);
+     }
+   }
+@@ -1855,6 +1888,7 @@
+   unsigned short *frameBuffer = (unsigned short*)dst_data;
+   unsigned short *depthBuffer = (unsigned short*)dst_data;
+   LOG("grLfbReadRegion(%d,%d,%d,%d,%d,%d)\r\n", src_buffer, src_x, src_y, src_width, src_height, dst_stride);
++//printf("grLfbReadRegion(%d,%d,%d,%d,%d,%d)\r\n", src_buffer, src_x, src_y, src_width, src_height, dst_stride);
+ 
+   switch(src_buffer)
+   {
+@@ -1876,15 +1910,22 @@
+     buf = (unsigned char*)malloc(src_width*src_height*4);
+ 
+     glReadPixels(src_x, (viewport_offset)+height-src_y-src_height, src_width, src_height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+-
+     for (j=0; j<src_height; j++)
+     {
++/*SEB*/
++      unsigned char *p=buf+(src_height-j-1)*src_width*4;
++      unsigned short *f=frameBuffer+(j*dst_stride/2);
+       for (i=0; i<src_width; i++)
+       {
+-        frameBuffer[j*(dst_stride/2)+i] =
++/*        frameBuffer[j*(dst_stride/2)+i] =
+           ((buf[(src_height-j-1)*src_width*4+i*4+0] >> 3) << 11) |
+           ((buf[(src_height-j-1)*src_width*4+i*4+1] >> 2) <<  5) |
+-          (buf[(src_height-j-1)*src_width*4+i*4+2] >> 3);
++          (buf[(src_height-j-1)*src_width*4+i*4+2] >> 3);*/
++        *(f++) =
++          ((*(p) >> 3) << 11) |
++          ((*(p+1) >> 2) <<  5) |
++          (*(p+2) >> 3);
++	  p+=4;
+       }
+     }
+     free(buf);
+@@ -1892,15 +1933,19 @@
+   else
+   {
+     buf = (unsigned char*)malloc(src_width*src_height*2);
+-
+-    glReadPixels(src_x, (viewport_offset)+height-src_y-src_height, src_width, src_height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, depthBuffer);
++//*SEB read in buf, not depthBuffer.
++    glReadPixels(src_x, (viewport_offset)+height-src_y-src_height, src_width, src_height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, buf);
+ 
+     for (j=0;j<src_height; j++)
+     {
++//*SEB*
++      unsigned short *d=depthBuffer+j*dst_stride/2;
++      unsigned short *p=(unsigned short*)buf+(src_height-j-1)*src_width; //orignal look fishy. why *4???
+       for (i=0; i<src_width; i++)
+       {
+-        depthBuffer[j*(dst_stride/2)+i] =
+-          ((unsigned short*)buf)[(src_height-j-1)*src_width*4+i*4];
++/*        depthBuffer[j*(dst_stride/2)+i] =
++          ((unsigned short*)buf)[(src_height-j-1)*src_width*4+i*4];*/
++        *(d++) = *(p++); //why *4 (prob. GL_PACK was=4), plus transcoding to short, that make *8 ???
+       }
+     }
+     free(buf);
+@@ -1923,6 +1968,7 @@
+   int texture_number;
+   unsigned int tex_width = 1, tex_height = 1;
+   LOG("grLfbWriteRegion(%d,%d,%d,%d,%d,%d,%d,%d)\r\n",dst_buffer, dst_x, dst_y, src_format, src_width, src_height, pixelPipeline, src_stride);
++//printf("grLfbWriteRegion(%d,%d,%d,%d,%d,%d,%d,%d)\r\n",dst_buffer, dst_x, dst_y, src_format, src_width, src_height, pixelPipeline, src_stride);
+ 
+   //glPushAttrib(GL_ALL_ATTRIB_BITS);
+ 
+@@ -1949,6 +1995,12 @@
+     glActiveTexture(texture_number);
+ 
+     const unsigned int half_stride = src_stride / 2;
++
++    const int comp_stride = half_stride - src_width;
++    const int comp_tex = (tex_width - src_width)*4;
++    unsigned short *f=frameBuffer;
++    unsigned char *p=buf;
++
+     switch(src_format)
+     {
+     case GR_LFB_SRC_FMT_1555:
+@@ -1956,12 +2008,20 @@
+       {
+         for (i=0; i<src_width; i++)
+         {
+-          const unsigned int col = frameBuffer[j*half_stride+i];
++/*          const unsigned int col = frameBuffer[j*half_stride+i];
+           buf[j*tex_width*4+i*4+0]=((col>>10)&0x1F)<<3;
+           buf[j*tex_width*4+i*4+1]=((col>>5)&0x1F)<<3;
+           buf[j*tex_width*4+i*4+2]=((col>>0)&0x1F)<<3;
+-          buf[j*tex_width*4+i*4+3]= (col>>15) ? 0xFF : 0;
++          buf[j*tex_width*4+i*4+3]= (col>>15) ? 0xFF : 0;*/
++          const unsigned int col = *(f++);
++          *(p)=((col>>10)&0x1F)<<3;
++          *(p+1)=((col>>5)&0x1F)<<3;
++          *(p+2)=((col>>0)&0x1F)<<3;
++          *(p+3)= (col>>15) ? 0xFF : 0;
++	  p+=4;
+         }
++	p+=comp_tex;
++	f+=comp_stride;
+       }
+       break;
+     case GR_LFBWRITEMODE_555:
+@@ -1969,12 +2029,20 @@
+       {
+         for (i=0; i<src_width; i++)
+         {
+-          const unsigned int col = frameBuffer[j*half_stride+i];
++/*          const unsigned int col = frameBuffer[j*half_stride+i];
+           buf[j*tex_width*4+i*4+0]=((col>>10)&0x1F)<<3;
+           buf[j*tex_width*4+i*4+1]=((col>>5)&0x1F)<<3;
+           buf[j*tex_width*4+i*4+2]=((col>>0)&0x1F)<<3;
+-          buf[j*tex_width*4+i*4+3]=0xFF;
++          buf[j*tex_width*4+i*4+3]=0xFF;*/
++          const unsigned int col = *(f++);
++          *(p)=((col>>10)&0x1F)<<3;
++          *(p+1)=((col>>5)&0x1F)<<3;
++          *(p+2)=((col>>0)&0x1F)<<3;
++          *(p+3)=0xFF;
++	  p+=4;
+         }
++	p+=comp_tex;
++	f+=comp_stride;
+       }
+       break;
+     case GR_LFBWRITEMODE_565:
+@@ -1982,12 +2050,20 @@
+       {
+         for (i=0; i<src_width; i++)
+         {
+-          const unsigned int col = frameBuffer[j*half_stride+i];
++/*          const unsigned int col = frameBuffer[j*half_stride+i];
+           buf[j*tex_width*4+i*4+0]=((col>>11)&0x1F)<<3;
+           buf[j*tex_width*4+i*4+1]=((col>>5)&0x3F)<<2;
+           buf[j*tex_width*4+i*4+2]=((col>>0)&0x1F)<<3;
+-          buf[j*tex_width*4+i*4+3]=0xFF;
++          buf[j*tex_width*4+i*4+3]=0xFF;*/
++          const unsigned int col = *(f++);
++          *(p)=((col>>11)&0x1F)<<3;
++          *(p+1)=((col>>5)&0x3F)<<2;
++          *(p+2)=((col>>0)&0x1F)<<3;
++          *(p+3)=0xFF;
++	  p+=4;
+         }
++	p+=comp_tex;
++	f+=comp_stride;
+       }
+       break;
+     default:
+@@ -2006,7 +2082,7 @@
+ #endif
+ 
+     glBindTexture(GL_TEXTURE_2D, default_texture);
+-    glTexImage2D(GL_TEXTURE_2D, 0, 4, tex_width, tex_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
++    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_width, tex_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+     free(buf);
+ 
+     set_copy_shader();
+diff -Naur ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glitch64/textures.cpp ./Glitch64/textures.cpp
+--- ../../../../git/mupen64plus-ae/jni/gles2glide64/src/Glitch64/textures.cpp	2013-09-06 22:05:31.000000000 +0200
++++ ./Glitch64/textures.cpp	2013-09-13 11:32:50.000000000 +0200
+@@ -26,6 +26,7 @@
+ #include "glide.h"
+ #include "main.h"
+ #include <stdio.h>
++#include <string.h>
+ 
+ /* Napalm extensions to GrTextureFormat_t */
+ #define GR_TEXFMT_ARGB_CMP_FXT1           0x11
+@@ -107,7 +108,7 @@
+   }
+   glDeleteTextures(n, t);
+   free(t);
+-  //printf("RMVTEX nbtex is now %d (%06x - %06x)\n", nbTex, idmin, idmax);
++//printf("RMVTEX nbtex is now %d (%06x - %06x)\n", nbTex, idmin, idmax);
+ }
+ 
+ 
+@@ -115,7 +116,7 @@
+ {
+   texlist *aux = list;
+   texlist *aux2;
+-  //printf("ADDTEX nbtex is now %d (%06x)\n", nbTex, id);
++//printf("ADDTEX nbtex is now %d (%06x)\n", nbTex, id);
+   if (list == NULL || id < list->id)
+   {
+     nbTex++;
+@@ -435,8 +436,11 @@
+     factor = -1;
+   else
+     factor = grTexFormat2GLPackedFmt(info->format, &gltexfmt, &glpixfmt, &glpackfmt);
+-
++//printf("grTexDownloadMipmap, id=%x, size=%ix%i, format=%x\n", startAddress+1, width, height, info->format);
+   if (factor < 0) {
++    gltexfmt = GL_RGBA;
++    glpixfmt = GL_RGBA;
++    glpackfmt = GL_UNSIGNED_BYTE;
+ 
+     // VP fixed the texture conversions to be more accurate, also swapped
+     // the for i/j loops so that is is less likely to break the memory cache
+@@ -444,7 +448,7 @@
+     switch(info->format)
+     {
+     case GR_TEXFMT_ALPHA_8:
+-      for (i=0; i<height; i++)
++ /*     for (i=0; i<height; i++)
+       {
+         for (j=0; j<width; j++)
+         {
+@@ -457,10 +461,25 @@
+         }
+       }
+       factor = 1;
+-      glformat = GL_RGBA;
++      glformat = GL_RGBA;*/
++
++     for (i=0; i<height; i++)
++      {
++        for (j=0; j<width; j++)
++        {
++          unsigned short texel = (unsigned short)((unsigned char*)info->data)[m];
++          ((unsigned short*)texture)[n] = texel|(texel<<8);
++          m++;
++          n++;
++        }
++      }
++
++      glformat = gltexfmt = glpixfmt = GL_LUMINANCE_ALPHA;
++      glpackfmt = GL_UNSIGNED_BYTE;
++      factor = 1;
+       break;
+     case GR_TEXFMT_INTENSITY_8: // I8 support - H.Morii
+-      for (i=0; i<height; i++)
++/*      for (i=0; i<height; i++)
+       {
+         for (j=0; j<width; j++)
+         {
+@@ -470,9 +489,13 @@
+           m++;
+           n++;
+         }
+-      }
++      }*/
++      factor = 1;
++//      glformat = GL_ALPHA;
++      memcpy(texture, info->data, width*height);
++      glformat = gltexfmt = glpixfmt = GL_LUMINANCE;
++      glpackfmt = GL_UNSIGNED_BYTE;
+       factor = 1;
+-      glformat = GL_ALPHA;
+       break;
+     case GR_TEXFMT_ALPHA_INTENSITY_44:
+ #if 1
+@@ -480,9 +503,9 @@
+       {
+         for (j=0; j<width; j++)
+         {
+-          unsigned int texel = (unsigned int)((unsigned char*)info->data)[m];
++/*          unsigned int texel = (unsigned int)((unsigned char*)info->data)[m];
+ #if 1
+-          /* accurate conversion */
++          // accurate conversion
+           unsigned int texel_hi = (texel & 0x000000F0) << 20;
+           unsigned int texel_low = texel & 0x0000000F;
+           texel_low |= (texel_low << 4);
+@@ -493,61 +516,90 @@
+           texel_hi |= ((texel_low << 16) | (texel_low << 8) | texel_low);
+ #endif
+           ((unsigned int*)texture)[n] = texel_hi;
++*/
++	  unsigned char texel = ((unsigned char*)info->data)[m];
++          unsigned short texel_hi = (texel & 0x000000F0) << 4;
++          unsigned short texel_low = texel & 0x0000000F;
++          texel_low |= (texel_low << 4);
++          texel_hi |= ((texel_hi << 4) | (texel_low));
++	  ((unsigned short*)texture)[n] = texel_hi;
+           m++;
+           n++;
+         }
+       }
+       factor = 1;
+-      glformat = GL_LUMINANCE_ALPHA;
++      glformat = gltexfmt = glpixfmt = GL_LUMINANCE_ALPHA;
++      glpackfmt = GL_UNSIGNED_BYTE;
++//      glformat = GL_LUMINANCE_ALPHA;
+ #endif
+       break;
+     case GR_TEXFMT_RGB_565:
+-      for (i=0; i<height; i++)
++/*      for (i=0; i<height; i++)
+       {
+         for (j=0; j<width; j++)
+-        {
+-          unsigned int texel = (unsigned int)((unsigned short*)info->data)[m];
++        {*/
++/*          unsigned int texel = (unsigned int)((unsigned short*)info->data)[m];
+           unsigned int B = texel & 0x0000F800;
+           unsigned int G = texel & 0x000007E0;
+           unsigned int R = texel & 0x0000001F;
+ #if 0
+-          /* accurate conversion */
++          // accurate conversion 
+           ((unsigned int*)texture)[n] = 0xFF000000 | (R << 19) | ((R >> 2) << 16) | (G << 5) | ((G >> 9) << 8) | (B >> 8) | (B >> 13);
+ #else
+           ((unsigned int*)texture)[n] = 0xFF000000 | (R << 19) | (G << 5) | (B >> 8);
+ #endif
++*/
++/*	  const unsigned short texel = ((unsigned short*)info->data)[m];
++          const unsigned short B = (texel & 0xF800)>>11;
++          const unsigned short G = texel & 0x07E0;
++          const unsigned short R = (texel & 0x001F)<<11;
++          ((unsigned short*)texture)[n] = R|G|B;
+           m++;
+           n++;
+         }
+-      }
++      }*/
++      memcpy(texture, info->data, width*height*2);
+       factor = 2;
+-      glformat = GL_RGB;
++//      glformat = GL_RGB;
++      glformat = gltexfmt = glpixfmt = GL_RGB;
++      glpackfmt = GL_UNSIGNED_SHORT_5_6_5;
+       break;
+     case GR_TEXFMT_ARGB_1555:
+       for (i=0; i<height; i++)
+       {
+         for (j=0; j<width; j++)
+         {
+-          unsigned int texel = (unsigned int)((unsigned short*)info->data)[m];
++/*          unsigned int texel = (unsigned int)((unsigned short*)info->data)[m];
+           unsigned int A = texel & 0x00008000 ? 0xFF000000 : 0;
+           unsigned int B = texel & 0x00007C00;
+           unsigned int G = texel & 0x000003E0;
+           unsigned int R = texel & 0x0000001F;
+ #if 0
+-          /* accurate conversion */
++          // accurate conversion
+           ((unsigned int*)texture)[n] = A | (R << 19) | ((R >> 2) << 16) | (G << 6) | ((G >> 8) << 8) | (B >> 7) | (B >> 12);
+ #else
+           ((unsigned int*)texture)[n] = A | (R << 19) | (G << 6) | (B >> 7);
+ #endif
++*/
++          unsigned short texel = ((unsigned short*)info->data)[m];
++          unsigned short A = (texel & 0x8000)>>15;
++ 	  ((unsigned short*)texture)[n] = A|(texel&0x7fff)<<1;
++/*
++          unsigned short B = (texel & 0x7C00)>>9;
++          unsigned short G = texel & 0x03E0<<1;
++          unsigned short R = (texel & 0x001F)<<11;
++          ((unsigned short*)texture)[n] = A|R|G|B;*/
+           m++;
+           n++;
+         }
+       }
+       factor = 2;
+-      glformat = GL_RGBA;
++//      glformat = GL_RGBA;
++      glformat = gltexfmt = glpixfmt = GL_RGBA;
++      glpackfmt = GL_UNSIGNED_SHORT_5_5_5_1;
+       break;
+     case GR_TEXFMT_ALPHA_INTENSITY_88:
+-      for (i=0; i<height; i++)
++/*      for (i=0; i<height; i++)
+       {
+         for (j=0; j<width; j++)
+         {
+@@ -557,9 +609,12 @@
+           m++;
+           n++;
+         }
+-      }
++      }*/
++      memcpy(texture, info->data, width*height*2);
+       factor = 2;
+       glformat = GL_LUMINANCE_ALPHA;
++      glformat = gltexfmt = glpixfmt = GL_LUMINANCE_ALPHA;
++      glpackfmt = GL_UNSIGNED_BYTE;
+       break;
+     case GR_TEXFMT_ARGB_4444:
+ 
+@@ -567,23 +622,29 @@
+       {
+         for (j=0; j<width; j++)
+         {
+-          unsigned int texel = (unsigned int)((unsigned short*)info->data)[m];
++/*          unsigned int texel = (unsigned int)((unsigned short*)info->data)[m];
+           unsigned int A = texel & 0x0000F000;
+           unsigned int B = texel & 0x00000F00;
+           unsigned int G = texel & 0x000000F0;
+           unsigned int R = texel & 0x0000000F;
+ #if 0
+-          /* accurate conversion */
++          // accurate conversion
+           ((unsigned int*)texture)[n] = (A << 16) | (A << 12) | (R << 20) | (R << 16) | (G << 8) | (G << 4) | (B >> 4) | (B >> 8);
+ #else
+           ((unsigned int*)texture)[n] = (A << 16) | (R << 20) | (G << 8) | (B >> 4);
+ #endif
++*/
++          unsigned short texel = ((unsigned short*)info->data)[m];
++          unsigned int A = (texel & 0xF000)>>12;
++          ((unsigned short*)texture)[n] = A|(texel&0x0fff)<<4;
+           m++;
+           n++;
+         }
+       }
+       factor = 2;
+       glformat = GL_RGBA;
++      glformat = gltexfmt = glpixfmt = GL_RGBA;
++      glpackfmt = GL_UNSIGNED_SHORT_4_4_4_4;
+       break;
+     case GR_TEXFMT_ARGB_8888:
+       for (i=0; i<height; i++)
+@@ -650,7 +711,9 @@
+   if (largest_supported_anisotropy > 1.0f)
+     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, largest_supported_anisotropy);
+ 
+-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
++//*SEB*  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
++//printf("new texture, id=%x, size=%ix%i, fmt=%x/%x\n", startAddress+1, width, height, gltexfmt, glpackfmt);
++  glTexImage2D(GL_TEXTURE_2D, 0, gltexfmt, width, height, 0, glpixfmt, glpackfmt, texture);
+ /*
+   switch(info->format)
+   {
