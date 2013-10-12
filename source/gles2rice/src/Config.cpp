@@ -313,6 +313,9 @@ BOOL InitConfiguration(void)
     ConfigSetDefaultBool(l_ConfigVideoGeneral, "Fullscreen", 0, "Use fullscreen mode if True, or windowed mode if False ");
     ConfigSetDefaultInt(l_ConfigVideoGeneral, "ScreenWidth", 640, "Width of output window or fullscreen width");
     ConfigSetDefaultInt(l_ConfigVideoGeneral, "ScreenHeight", 480, "Height of output window or fullscreen height");
+#if 1
+    ConfigSetDefaultBool(l_ConfigVideoGeneral, "AspectRatio", 1, "If true, use correct aspect ratio, if false, stretch to fullscreen");
+#endif
     ConfigSetDefaultBool(l_ConfigVideoGeneral, "VerticalSync", 0, "If true, activate the SDL_GL_SWAP_CONTROL attribute");
 
     ConfigSetDefaultInt(l_ConfigVideoRice, "FrameBufferSetting", FRM_BUF_NONE, "Frame Buffer Emulation (0=ROM default, 1=disable)");
@@ -430,8 +433,16 @@ static void ReadConfiguration(void)
     windowSetting.bDisplayFullscreen = ConfigGetParamBool(l_ConfigVideoGeneral, "Fullscreen");
     windowSetting.uDisplayWidth = ConfigGetParamInt(l_ConfigVideoGeneral, "ScreenWidth");
 #if 1
-	if (windowSetting.uDisplayWidth==800)
-		windowSetting.uDisplayWidth = 640;	// no strech
+	windowSetting.bDisplayRatio = true;
+	windowSetting.uDisplayX = 0;
+	windowSetting.uDisplayY = 0;
+    windowSetting.bDisplayRatio = ConfigGetParamBool(l_ConfigVideoGeneral, "AspectRatio");
+	if (windowSetting.bDisplayRatio) {
+		if (windowSetting.uDisplayWidth==800) {
+			windowSetting.uDisplayWidth = 640;	// no strech
+			windowSetting.uDisplayX = 80;
+		}
+	}
 #endif
     windowSetting.uDisplayHeight = ConfigGetParamInt(l_ConfigVideoGeneral, "ScreenHeight");
     windowSetting.bVerticalSync = ConfigGetParamBool(l_ConfigVideoGeneral, "VerticalSync");
