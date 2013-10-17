@@ -293,7 +293,7 @@ printf("SDL was not init, aborting\n");
     }
 	#ifdef PANDORA
 	// Setup EGL Context...
-	if ((Width==800) && (Height==480))	// 800x480 => FB and no X11
+//	if ((Width==800) && (Height==480))	// 800x480 => FB and no X11
 		useFB = 1;		
 //	Width = 800;
 //	Height = 480;
