@@ -2162,7 +2162,7 @@ int8_t CSelector::RunExec( uint16_t selection )
 
         // Add Executable to command
         command += "cd " + cmdpath + "; ";
-        command += "LD_LIBRARY_PATH=./; export LD_LIBRARY_PATH; ";
+        command += "LD_LIBRARY_PATH=/mnt/utmp/mupen64plus2/lib:$LD_LIBRARY_PATH; export LD_LIBRARY_PATH; ";
         command += "./" + cmdname;
 
         // Setup arguments
@@ -2278,7 +2278,7 @@ int8_t CSelector::RunExec( uint16_t selection )
 
     CloseResources(0);
 
-    execlp( "/bin/sh", "/bin/sh", "-c", command.c_str(), NULL );
+    execlp( "/bin/bash", "/bin/bash", "-c", command.c_str(), NULL );
 
     //if execution continues then something went wrong and as we already called SDL_Quit we cannot continue, try reloading
     Log( "Error executing selected application, re-launching %s\n", APPNAME);
