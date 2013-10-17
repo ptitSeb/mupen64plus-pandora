@@ -139,6 +139,39 @@ EXPORT void CALL ProcessDList(void)
 {
     OGL.frame_dl++;
 
+#if 1
+    if (config.autoFrameSkip)
+    {
+        OGL_UpdateFrameTime();
+
+        if (OGL.consecutiveSkips < 1)
+        {
+            unsigned t = 0;
+            for(int i = 0; i < OGL_FRAMETIME_NUM; i++) t += OGL.frameTime[i];
+            t *= config.targetFPS;
+            if (config.romPAL) t = (t * 5) / 6;
+            if (t > (OGL_FRAMETIME_NUM * 1000))
+            {
+                OGL.consecutiveSkips++;
+                OGL.frameSkipped++;
+                RSP.busy = FALSE;
+                RSP.DList++;
+				*REG.MI_INTR |= MI_INTR_SP | MI_INTR_DP;
+				CheckInterrupts();
+                return;
+            }
+        }
+    }
+    else if ((OGL.frame_vsync % config.frameRenderRate) != 0)
+    {
+        OGL.frameSkipped++;
+        RSP.busy = FALSE;
+        RSP.DList++;
+        *REG.MI_INTR |= MI_INTR_SP | MI_INTR_DP;
+        CheckInterrupts();
+        return;
+    }
+#else
     if (frameSkipper.willSkipNext())
     {
         OGL.frameSkipped++;
@@ -146,13 +179,13 @@ EXPORT void CALL ProcessDList(void)
         RSP.DList++;
 
         /* avoid hang on frameskip */
-        *REG.MI_INTR |= MI_INTR_DP;
-        CheckInterrupts();
-        *REG.MI_INTR |= MI_INTR_SP;
+//        *REG.MI_INTR |= MI_INTR_DP;
+//        CheckInterrupts();
+        *REG.MI_INTR |= MI_INTR_SP | MI_INTR_DP;
         CheckInterrupts();
         return;
     }
-
+#endif
     OGL.consecutiveSkips = 0;
     RSP_ProcessDList();
     OGL.mustRenderDlist = true;

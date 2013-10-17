@@ -1214,7 +1214,7 @@ void OGL_SwapBuffers()
 {
     //OGL_DrawTriangles();
     scProgramChanged = 0;
-#if 0
+#if 1
     static int frames = 0;
     static unsigned lastTicks = 0;
     unsigned ticks = ticksGetTicks();
