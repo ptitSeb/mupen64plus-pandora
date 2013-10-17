@@ -1175,7 +1175,7 @@ void gSPDMATriangles( u32 tris, u32 n )
 
         if ((gSP.geometryMode&G_CULL_BOTH) != mode)
         {
-            OGL_DrawTriangles();
+//            OGL_DrawTriangles();
             gSP.geometryMode &= ~G_CULL_BOTH;
             gSP.geometryMode |= mode;
             gSP.changed |= CHANGED_GEOMETRYMODE;
@@ -1195,9 +1195,9 @@ void gSPDMATriangles( u32 tris, u32 n )
         triangles++;
     }
 
-#ifdef __TRIBUFFER_OPT
+//#ifdef __TRIBUFFER_OPT
     OGL_DrawTriangles();
-#endif
+//#endif
 }
 
 void gSP1Quadrangle( s32 v0, s32 v1, s32 v2, s32 v3)
