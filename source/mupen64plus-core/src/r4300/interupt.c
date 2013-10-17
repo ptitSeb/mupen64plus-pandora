@@ -126,7 +126,8 @@ void add_interupt_event(int type, unsigned int delay)
     if(Count > 0x80000000) SPECIAL_done = 0;
    
     if (get_event(type)) {
-        DebugMessage(M64MSG_WARNING, "two events of type 0x%x in interrupt queue", type);
+        //DebugMessage(M64MSG_WARNING, "two events of type 0x%x in interrupt queue", type);
+		return;	// silently return...
     }
    
     if (q == NULL)
