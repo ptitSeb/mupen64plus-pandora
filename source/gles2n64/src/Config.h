@@ -66,7 +66,7 @@ struct Config
     int     hackZelda;
     int     hackAlpha;
 
-    bool    stretchVideo;
+    int    	stretchVideo;
     bool    romPAL;    //is the rom PAL
     char    romName[21];
 };

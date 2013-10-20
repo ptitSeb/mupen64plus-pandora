@@ -76,6 +76,7 @@ Option configOptions[] =
     {"video force", &config.video.force, 0},
     {"video width", &config.video.width, 320},
     {"video height", &config.video.height, 240},
+    {"video stretch", &config.stretchVideo, 0},
     {"", NULL, 0},
 
     {"#Render Settings:", NULL, 0},
@@ -120,7 +121,7 @@ Option configOptions[] =
     {"hack banjo tooie", &config.hackBanjoTooie, 0},
     {"hack zelda", &config.hackZelda, 0},
     {"hack alpha", &config.hackAlpha, 0},
-    {"hack z", &config.zHack, 0},
+    {"hack z", &config.zHack, 0}
 
 };
 
