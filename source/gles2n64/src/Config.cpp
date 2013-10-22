@@ -64,7 +64,7 @@ Option configOptions[] =
     {"", NULL, 0},
 
     {"#Framebuffer Settings:",NULL,0},
-//    {"framebuffer enable", &config.framebuffer.enable, 0},
+    {"framebuffer enable", &config.framebuffer.enable, 0},
     {"framebuffer bilinear", &config.framebuffer.bilinear, 0},
     {"framebuffer width", &config.framebuffer.width, 400},
     {"framebuffer height", &config.framebuffer.height, 240},
@@ -99,8 +99,8 @@ Option configOptions[] =
     {"", NULL, 0},
 
     {"#Frame skip:", NULL, 0},
-    {"auto frameskip", &config.autoFrameSkip, 0},
-    {"max frameskip", &config.maxFrameSkip, 0},
+    {"auto frameskip", &config.autoFrameSkip, 1},
+    {"max frameskip", &config.maxFrameSkip, 3},
     {"target FPS", &config.targetFPS, 20},
     {"frame render rate", &config.frameRenderRate, 1},
     {"vertical sync", &config.verticalSync, 0},

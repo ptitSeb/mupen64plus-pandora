@@ -341,12 +341,12 @@ void OpenCfg ( const char* file )
     eglSettings[CFG_VSYNC]          = 0;
     eglSettings[CFG_FSAA]           = 0;
     eglSettings[CFG_FPS]            = 0;
-    eglSettings[CFG_RED_SIZE]       = 5;
-    eglSettings[CFG_GREEN_SIZE]     = 6;
-    eglSettings[CFG_BLUE_SIZE]      = 5;
+    eglSettings[CFG_RED_SIZE]       = 0;
+    eglSettings[CFG_GREEN_SIZE]     = 0;
+    eglSettings[CFG_BLUE_SIZE]      = 0;
     eglSettings[CFG_ALPHA_SIZE]     = 0;
     eglSettings[CFG_DEPTH_SIZE]     = 16;
-    eglSettings[CFG_BUFFER_SIZE]    = 16;
+    eglSettings[CFG_BUFFER_SIZE]    = 0;
     eglSettings[CFG_STENCIL_SIZE]   = 0;
 
     /* Parse INI file */
@@ -382,7 +382,7 @@ int8_t FindEGLConfigs( void )
 {
     EGLBoolean result;
     int attrib = 0;
-    EGLint ConfigAttribs[23];
+    EGLint ConfigAttribs[27];
 
     ConfigAttribs[attrib++] = EGL_RED_SIZE;                         /* 1 */
     ConfigAttribs[attrib++] = eglSettings[CFG_RED_SIZE];            /* 2 */
@@ -412,7 +412,11 @@ int8_t FindEGLConfigs( void )
     ConfigAttribs[attrib++] = (eglSettings[CFG_FSAA] > 0) ? 1 : 0;  /* 20 */
     ConfigAttribs[attrib++] = EGL_SAMPLES;                          /* 21 */
     ConfigAttribs[attrib++] = eglSettings[CFG_FSAA];                /* 22 */
-    ConfigAttribs[attrib++] = EGL_NONE;                             /* 23 */
+    ConfigAttribs[attrib++] = EGL_NATIVE_RENDERABLE;                /* 23 */
+    ConfigAttribs[attrib++] = EGL_FALSE;                            /* 24 */
+    ConfigAttribs[attrib++] = EGL_LEVEL;                            /* 25 */
+    ConfigAttribs[attrib++] = 0;                                    /* 26 */
+    ConfigAttribs[attrib++] = EGL_NONE;                             /* 27 */
 
     result = peglChooseConfig( eglDisplay, ConfigAttribs, eglConfigs, totalConfigsIn, &totalConfigsFound );
     if (result != EGL_TRUE || totalConfigsFound == 0)

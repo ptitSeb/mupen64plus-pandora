@@ -81,6 +81,7 @@ const char _default_fsh[] = "                           \n\t" \
 "gl_FragColor = texture2D(uTex, vTexCoord);             \n\t" \
 "}                                                      \n\t";
 
+
 void OGL_EnableRunfast()
 {
 #ifdef ARM_ASM
@@ -224,10 +225,12 @@ void OGL_ResizeWindow(int x, int y, int width, int height)
     config.window.width = width;
     config.window.height = height;
 
-    config.framebuffer.xpos = x;
-    config.framebuffer.ypos = y;
-    config.framebuffer.width = width;
-    config.framebuffer.height = height;
+	if (config.framebuffer.enable!=1) {
+		config.framebuffer.xpos = x;
+		config.framebuffer.ypos = y;
+		config.framebuffer.width = width;
+		config.framebuffer.height = height;
+	}
     OGL_UpdateScale();
 
     glViewport(config.framebuffer.xpos, config.framebuffer.ypos,
@@ -305,20 +308,23 @@ else*/
     //set xpos and ypos
     config.window.xpos = x;
     config.window.ypos = y;
-    config.framebuffer.xpos = x;
-    config.framebuffer.ypos = y;
     
     //set width and height
     config.window.width = (int)videoWidth;
     config.window.height = (int)videoHeight;
-    config.framebuffer.width = (int)videoWidth;
-    config.framebuffer.height = (int)videoHeight;
+	if (config.framebuffer.enable!=1) {
+		config.framebuffer.xpos = x;
+		config.framebuffer.ypos = y;
+		config.framebuffer.width = (int)videoWidth;
+		config.framebuffer.height = (int)videoHeight;
+	}
 	
 	EGL_Open(800, 480);
 ////
     return true;
 }
 #endif
+
 //////
 
 #ifdef USE_SDL
@@ -327,7 +333,6 @@ void Android_JNI_SwapWindow()
 	EGL_SwapBuffers();
 }
 #endif
-
 
 bool OGL_Start()
 {
@@ -368,13 +373,18 @@ bool OGL_Start()
         }
 
         glGenFramebuffers(1, &OGL.framebuffer.fb);
-        glGenRenderbuffers(1, &OGL.framebuffer.depth_buffer);
         glGenTextures(1, &OGL.framebuffer.color_buffer);
-        glBindRenderbuffer(GL_RENDERBUFFER, OGL.framebuffer.depth_buffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24_OES, config.framebuffer.width, config.framebuffer.height);
         glBindTexture(GL_TEXTURE_2D, OGL.framebuffer.color_buffer);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, config.framebuffer.width, config.framebuffer.height, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
-        glBindFramebuffer(GL_FRAMEBUFFER, OGL.framebuffer.fb);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glBindTexture(GL_TEXTURE_2D, 0);
+        glGenRenderbuffers(1, &OGL.framebuffer.depth_buffer);
+        glBindRenderbuffer(GL_RENDERBUFFER, OGL.framebuffer.depth_buffer);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24_OES, config.framebuffer.width, config.framebuffer.height);
+		glBindFramebuffer(GL_FRAMEBUFFER, OGL.framebuffer.fb);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, OGL.framebuffer.color_buffer, 0);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, OGL.framebuffer.depth_buffer);
 
@@ -1271,15 +1281,20 @@ void OGL_SwapBuffers()
     }
 #endif
 
+    // if emulator defined a render callback function, call it before
+	// buffer swap
+    if (renderCallback) (*renderCallback)();
+
     if (config.framebuffer.enable)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor( 0, 0, 0, 1 );
+        glClearColor( 0, 0, 0, 1 );	
         glClear( GL_COLOR_BUFFER_BIT );
 
         glUseProgram(OGL.defaultProgram);
         glDisable(GL_SCISSOR_TEST);
         glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);	//*SEB*
         glViewport(config.window.xpos, config.window.ypos, config.window.width, config.window.height);
 
         static const float vert[] =
@@ -1313,6 +1328,7 @@ void OGL_SwapBuffers()
 
         glBindFramebuffer(GL_FRAMEBUFFER, OGL.framebuffer.fb);
         OGL_UpdateViewport();
+		OGL_UpdateCullFace();
         if (scProgramCurrent) glUseProgram(scProgramCurrent->program);
         OGL.renderState = RS_NONE;
     }
@@ -1320,10 +1336,6 @@ void OGL_SwapBuffers()
     {
         Android_JNI_SwapWindow(); // paulscode, fix for black-screen bug
     }
-
-    // if emulator defined a render callback function, call it before
-	// buffer swap
-    if (renderCallback) (*renderCallback)();
 
     OGL.screenUpdate = false;
 

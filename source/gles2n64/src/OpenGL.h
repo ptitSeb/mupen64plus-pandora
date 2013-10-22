@@ -10,6 +10,9 @@
 //    #include <GLES2/gl2extimg.h>
     #include <SDL.h>
 #endif
+#ifdef USE_X11
+	#include <EGL/egl.h>
+#endif
 
 #ifndef min
 #define min(a,b) ((a) < (b) ? (a) : (b))
@@ -77,7 +80,8 @@ struct GLInfo
 #ifdef USE_SDL
 // TODO: More EGL stuff, need to do this in Java
     SDL_Surface *hScreen;  // TODO: Do we really need this?  Only using it in one place AFAICT..
-/*
+#endif
+#ifdef USE_X11
     struct
     {
         EGLint		            version_major, version_minor;
@@ -88,7 +92,6 @@ struct GLInfo
         EGLNativeDisplayType    device;
         EGLNativeWindowType     handle;
     } EGL;
-*/
 #endif
 
     bool    screenUpdate;
