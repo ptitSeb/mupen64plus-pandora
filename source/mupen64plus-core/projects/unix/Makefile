@@ -94,6 +94,7 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     CPU := ARM
     ARCH_DETECTED := 32BITS
     PIC ?= 1
+	OSD ?= 0
     NEW_DYNAREC := 1
     CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
