@@ -21,12 +21,13 @@
 
 #if LOG_LEVEL>0
 
-#include <android/log.h>
-
 #define LOG(A, ...) \
     if (A <= LOG_LEVEL) \
     { \
-        __android_log_print(ANDROID_LOG_DEBUG, "gles2n64", __VA_ARGS__); \
+        if (A == LOG_WARNING) printf("(WW) "); \
+        if (A == LOG_ERROR) printf("(EE) "); \
+        printf(__VA_ARGS__); \
+        fflush(stdout); \
     }
 
 #else
