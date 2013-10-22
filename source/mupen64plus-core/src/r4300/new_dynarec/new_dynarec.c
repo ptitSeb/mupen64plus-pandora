@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdint.h> //include for uint64_t
 #include <assert.h>
+//#define assert(a)	{}
 
 #include "../recomp.h"
 #include "../recomph.h" //include for function prototypes
@@ -857,7 +858,7 @@ static void divu64(uint64_t dividend,uint64_t divisor)
   //                                     ,(int)reg[LOREG],(int)(reg[LOREG]>>32));
 }
 
-static void mult64(uint64_t m1,uint64_t m2)
+static void mult64(int64_t m1,int64_t m2)
 {
    unsigned long long int op1, op2, op3, op4;
    unsigned long long int result1, result2, result3, result4;
@@ -1727,7 +1728,7 @@ void multdiv_alloc(struct regstat *current,int i)
       current->uu&=~(1LL<<HIREG);
       current->uu&=~(1LL<<LOREG);
       alloc_reg64(current,i,HIREG);
-      //if(HOST_REGS>10) alloc_reg64(current,i,LOREG);
+      //if(HOST_REGS>10) alloc_reg64(current,i,LOREG);	//*SEB* Why commenting this line? uncommenting make SM64 freeze after title (before mario head and spinning stars)
       alloc_reg64(current,i,rs1[i]);
       alloc_reg64(current,i,rs2[i]);
       alloc_all(current,i);
@@ -1743,12 +1744,12 @@ void multdiv_alloc(struct regstat *current,int i)
     // Multiply by zero is zero.
     // MIPS does not have a divide by zero exception.
     // The result is undefined, we return zero.
-    alloc_reg(current,i,HIREG);
-    alloc_reg(current,i,LOREG);
-    current->is32|=1LL<<HIREG;
-    current->is32|=1LL<<LOREG;
-    dirty_reg(current,HIREG);
-    dirty_reg(current,LOREG);
+	alloc_reg(current,i,HIREG);
+	alloc_reg(current,i,LOREG);
+	current->is32|=1LL<<HIREG;
+	current->is32|=1LL<<LOREG;
+	dirty_reg(current,HIREG);
+	dirty_reg(current,LOREG);
   }
 }
 #endif
@@ -5305,6 +5306,7 @@ static void cjump_assemble(int i,struct regstat *i_regs)
         if(opcode[i]==6) // BLEZ
         {
           emit_test(s1h,s1h);
+//          emit_testimm(s1h,0);
           if(invert) taken=(int)out;
           else add_to_linker((int)out,ba[i],internal);
           emit_js(0);
@@ -5314,6 +5316,7 @@ static void cjump_assemble(int i,struct regstat *i_regs)
         if(opcode[i]==7) // BGTZ
         {
           emit_test(s1h,s1h);
+//          emit_testimm(s1h,0);
           nottaken1=(int)out;
           emit_js(1);
           if(invert) taken=(int)out;
@@ -9253,10 +9256,14 @@ int new_recompile_block(int addr)
       }
       // Don't need stuff which is overwritten
       if(regs[i].regmap[hr]!=regmap_pre[i][hr]) nr&=~(1<<hr);
-      if(regs[i].regmap[hr]<0) nr&=~(1<<hr);
+      if(regs[i].regmap[hr]<0) nr&=~(1<<hr);	//moved...
       // Merge in delay slot
       for(hr=0;hr<HOST_REGS;hr++)
       {
+		// Don't need stuff which is overwritten
+/*		if(regs[i].regmap[hr]!=regmap_pre[i][hr]) nr&=~(1<<hr);	//*SEB* Moved here
+		if(regs[i].regmap[hr]<0) nr&=~(1<<hr);*/
+
         if(!likely[i]) {
           // These are overwritten unless the branch is "likely"
           // and the delay slot is nullified if not taken
