@@ -23,8 +23,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdint.h> //include for uint64_t
-#include <assert.h>
-//#define assert(a)	{}
+//#include <assert.h>
+#define assert(a)	{}
 
 #include "../recomp.h"
 #include "../recomph.h" //include for function prototypes
