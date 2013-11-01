@@ -1,6 +1,6 @@
 PIC ?= 1
 NO_ASM := 1
-CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -DNO_ASM -DPAULSCODE -Ofast
+CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -DNO_ASM -DPAULSCODE -Ofast -flto -fuse-linker-plugin
 CFLAGS += -I ../../../../mupen64plus-bundle-src-2.0/source/mupen64plus-core/src/api/
 CFLAGS += `sdl-config --cflags`
 
@@ -76,9 +76,9 @@ CXX       = $(CROSS_COMPILE)g++
 RM       ?= rm -f
 INSTALL  ?= install
 MKDIR ?= mkdir -p
-COMPILE.c = $(Q_CC)$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -gdwarf-2 -c
-COMPILE.cc = $(Q_CXX)$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -gdwarf-2 -c
-LINK.o = $(Q_LD)$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) -gdwarf-2
+COMPILE.c = $(Q_CC)$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -gdwarf-2 -flto -fuse-linker-plugin -c
+COMPILE.cc = $(Q_CXX)$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -gdwarf-2 -flto -fuse-linker-plugin -c
+LINK.o = $(Q_LD)$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) -gdwarf-2 -flto -fuse-linker-plugin
 
 # set installation options
 ifeq ($(PREFIX),)
