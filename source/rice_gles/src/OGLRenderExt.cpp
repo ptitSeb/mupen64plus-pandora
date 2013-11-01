@@ -60,6 +60,16 @@ void OGLRender::DrawSpriteR_Render()    // With Rotation
             g_texRectTVtx[3].tcord[0].u,g_texRectTVtx[3].tcord[0].v,
     };
 
+    GLfloat tex2[] = {
+            g_texRectTVtx[0].tcord[1].u,g_texRectTVtx[0].tcord[1].v,
+            g_texRectTVtx[1].tcord[1].u,g_texRectTVtx[1].tcord[1].v,
+            g_texRectTVtx[2].tcord[1].u,g_texRectTVtx[2].tcord[1].v,
+
+            g_texRectTVtx[0].tcord[1].u,g_texRectTVtx[0].tcord[1].v,
+            g_texRectTVtx[2].tcord[1].u,g_texRectTVtx[2].tcord[1].v,
+            g_texRectTVtx[3].tcord[1].u,g_texRectTVtx[3].tcord[1].v,
+    };
+
     GLfloat vertices[] = {
             g_texRectTVtx[0].x, g_texRectTVtx[0].y, -g_texRectTVtx[0].z, 1,
             g_texRectTVtx[1].x, g_texRectTVtx[1].y, -g_texRectTVtx[1].z, 1,
@@ -75,33 +85,20 @@ void OGLRender::DrawSpriteR_Render()    // With Rotation
     if( m_bMultiTexture )
     {
 		glClientActiveTexture( GL_TEXTURE1 );
-//		if (m_texUnitEnabled[1])
-//			glEnableClientState( GL_TEXTURE_COORD_ARRAY );
-//			glTexCoordPointer(2, GL_FLOAT, 0, &tex);
-//		else
-			glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+		glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+		glTexCoordPointer(2, GL_FLOAT, 0, &tex2);
         glClientActiveTexture( GL_TEXTURE0 );
     }
-// 	if (m_texUnitEnabled[0])
-//	glEnableClientState( GL_TEXTURE_COORD_ARRAY );
-		glTexCoordPointer(2, GL_FLOAT, 0, &tex);
-//	else
-//		glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+	glTexCoordPointer(2, GL_FLOAT, 0, &tex);
     glDrawArrays(GL_TRIANGLES,0,6);
     //Restore old pointers
     glColorPointer( 4, GL_UNSIGNED_BYTE, sizeof(uint8)*4, &(g_oglVtxColors[0][0]) );
-// 	if (m_texUnitEnabled[1])
-		glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[0].u) );
-//	else
-//		glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+	glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[0].u) );
     glVertexPointer( 4, GL_FLOAT, sizeof(float)*5, &(g_vtxProjected5[0][0]) );
     if( m_bMultiTexture )
     {
 		glClientActiveTexture( GL_TEXTURE1 );
-//		if (m_texUnitEnabled[1])
-//			glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[1].u) );
-//		else
-			glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+		glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[1].u) );
     }
 #else
     glBegin(GL_TRIANGLES);

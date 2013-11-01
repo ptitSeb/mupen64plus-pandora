@@ -624,16 +624,10 @@ bool OGLRender::RenderTexRect()
     if( m_bMultiTexture )
     {
 		glClientActiveTexture( GL_TEXTURE1 );
-		//if (m_texUnitEnabled[1])
-			glTexCoordPointer(2, GL_FLOAT, 0, &tex2);
-		/*else
-			glDisableClientState(GL_TEXTURE_COORD_ARRAY);*/
+		glTexCoordPointer(2, GL_FLOAT, 0, &tex2);
 		glClientActiveTexture( GL_TEXTURE0 );
     }
-	//if (m_texUnitEnabled[0])
-		glTexCoordPointer(2, GL_FLOAT, 0, &tex);
-	/*else
-		glDisableClientState(GL_TEXTURE_COORD_ARRAY);*/
+	glTexCoordPointer(2, GL_FLOAT, 0, &tex);
 
     glColorPointer(4, GL_FLOAT,0, &colour );
     glVertexPointer(4,GL_FLOAT, 0, &vertices);
@@ -646,17 +640,11 @@ bool OGLRender::RenderTexRect()
     glColorPointer( 4, GL_UNSIGNED_BYTE, sizeof(uint8)*4, &(g_oglVtxColors[0][0]) );
 
     glVertexPointer( 4, GL_FLOAT, sizeof(float)*5, &(g_vtxProjected5[0][0]) );
-//	if (m_texUnitEnabled[0])
-		glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[0].u) );
-/*	else
-		glEnableClientState(GL_TEXTURE_COORD_ARRAY);*/
+	glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[0].u) );
     if( m_bMultiTexture )
     {
 		glClientActiveTexture( GL_TEXTURE1 );
-//		if (m_texUnitEnabled[1])
-			glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[1].u) );
-/*		else
-			glEnableClientState( GL_TEXTURE_COORD_ARRAY );*/
+		glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[1].u) );
     }
 #else
 
@@ -1013,6 +1001,15 @@ void OGLRender::DrawSimple2DTexture(float x0, float y0, float x1, float y1, floa
             g_texRectTVtx[3].tcord[0].u,g_texRectTVtx[3].tcord[0].v
     };
 
+    GLfloat tex2[] = {
+            g_texRectTVtx[0].tcord[1].u,g_texRectTVtx[0].tcord[1].v,
+            g_texRectTVtx[1].tcord[1].u,g_texRectTVtx[1].tcord[1].v,
+            g_texRectTVtx[2].tcord[1].u,g_texRectTVtx[2].tcord[1].v,
+            g_texRectTVtx[0].tcord[1].u,g_texRectTVtx[0].tcord[1].v,
+            g_texRectTVtx[2].tcord[1].u,g_texRectTVtx[2].tcord[1].v,
+            g_texRectTVtx[3].tcord[1].u,g_texRectTVtx[3].tcord[1].v
+    };
+
     GLfloat vertices[] = {
             g_texRectTVtx[0].x, g_texRectTVtx[0].y, -g_texRectTVtx[0].z, 1,
             g_texRectTVtx[1].x, g_texRectTVtx[1].y, -g_texRectTVtx[1].z, 1,
@@ -1027,31 +1024,19 @@ void OGLRender::DrawSimple2DTexture(float x0, float y0, float x1, float y1, floa
     if( m_bMultiTexture )
     {
 		glClientActiveTexture( GL_TEXTURE1 );
-//		if (m_texUnitEnabled[1])
-			glTexCoordPointer(2, GL_FLOAT, 0, &tex);
-/*		else
-			glDisableClientState( GL_TEXTURE_COORD_ARRAY );*/
+		glTexCoordPointer(2, GL_FLOAT, 0, &tex2);
         glClientActiveTexture( GL_TEXTURE0 );
     }
-//	if (m_texUnitEnabled[0])
-			glTexCoordPointer(2, GL_FLOAT, 0, &tex);
-/*		else
-			glDisableClientState( GL_TEXTURE_COORD_ARRAY );*/
+	glTexCoordPointer(2, GL_FLOAT, 0, &tex);
     glDrawArrays(GL_TRIANGLES,0,6);
     //Restore old pointers
     glColorPointer( 4, GL_UNSIGNED_BYTE, sizeof(uint8)*4, &(g_oglVtxColors[0][0]) );
     glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[0].u) );
-//	if (m_texUnitEnabled[1])
-		glVertexPointer( 4, GL_FLOAT, sizeof(float)*5, &(g_vtxProjected5[0][0]) );
-/*	else
-			glEnableClientState( GL_TEXTURE_COORD_ARRAY );*/
+	glVertexPointer( 4, GL_FLOAT, sizeof(float)*5, &(g_vtxProjected5[0][0]) );
     if( m_bMultiTexture )
     {
 		glClientActiveTexture( GL_TEXTURE1 );
-//		if (m_texUnitEnabled[1])
-			glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[1].u) );
-/*		else
-			glEnableClientState( GL_TEXTURE_COORD_ARRAY );*/
+		glTexCoordPointer( 2, GL_FLOAT, sizeof( TLITVERTEX ), &(g_vtxBuffer[0].tcord[1].u) );
     }
 #else
     glBegin(GL_TRIANGLES);
@@ -1164,17 +1149,14 @@ void OGLRender::DrawSimpleRect(int nX0, int nY0, int nX1, int nY1, uint32 dwColo
     if( m_bMultiTexture )
     {
 		glClientActiveTexture( GL_TEXTURE1 );
-		if (m_texUnitEnabled[1]) {
-			glActiveTexture( GL_TEXTURE1 );
-			glDisable(GL_TEXTURE_2D);
-		}
+		glActiveTexture( GL_TEXTURE1 );
+		glDisable(GL_TEXTURE_2D);
 		glDisableClientState( GL_TEXTURE_COORD_ARRAY );
         glClientActiveTexture( GL_TEXTURE0 );
     }
-	if (m_texUnitEnabled[0]) {
-		glActiveTexture( GL_TEXTURE0 );
-		glDisable(GL_TEXTURE_2D);
-	}
+	glActiveTexture( GL_TEXTURE0 );
+	glDisable(GL_TEXTURE_2D);
+
     glDisableClientState( GL_TEXTURE_COORD_ARRAY );
     OPENGL_CHECK_ERRORS;
     glColor4f(r,g,b,a);
@@ -1184,15 +1166,11 @@ void OGLRender::DrawSimpleRect(int nX0, int nY0, int nX1, int nY1, uint32 dwColo
     glColorPointer( 4, GL_UNSIGNED_BYTE, sizeof(uint8)*4, &(g_oglVtxColors[0][0]) );
     glEnableClientState( GL_TEXTURE_COORD_ARRAY );
     glVertexPointer( 4, GL_FLOAT, sizeof(float)*5, &(g_vtxProjected5[0][0]) );
-	if (m_texUnitEnabled[0]) {
-		glEnable(GL_TEXTURE_2D);
-	}
+	glEnable(GL_TEXTURE_2D);
     if( m_bMultiTexture )
     {
-		if (m_texUnitEnabled[1]) {
-			glActiveTexture( GL_TEXTURE1 );
-			glEnable(GL_TEXTURE_2D);
-		}
+		glActiveTexture( GL_TEXTURE1 );
+		glEnable(GL_TEXTURE_2D);
 		glClientActiveTexture( GL_TEXTURE1 );
 		glEnableClientState( GL_TEXTURE_COORD_ARRAY );
     }

@@ -301,7 +301,7 @@ void COGLGraphicsContext::InitState(void)
     glDepthRange(-1, 1);
 
 #elif SDL_VIDEO_OPENGL_ES2
-    glDepthRangef(0.0f, 1.0f);
+    glDepthRangef(-1.0f, 1.0f);
 #endif
     OPENGL_CHECK_ERRORS;
 }
@@ -313,7 +313,7 @@ void COGLGraphicsContext::InitOGLExtension(void)
     m_bSupportMultiTexture = true;
     m_bSupportTextureEnvCombine = true;
     m_bSupportSeparateSpecularColor = true;
-    m_bSupportSecondColor = true;
+    m_bSupportSecondColor = false;
     m_bSupportFogCoord = false;
     m_bSupportTextureObject = false;
     m_bSupportRescaleNormal = true;
