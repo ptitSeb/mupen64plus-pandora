@@ -96,7 +96,7 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     PIC ?= 1
 	OSD ?= 0
     NEW_DYNAREC := 1
-    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char
+    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
   endif
 endif
@@ -105,8 +105,7 @@ ifeq ("$(CPU)","NONE")
 endif
 
 # base CFLAGS, LDLIBS, and LDFLAGS
-OPTFLAGS ?= -O3 
-#-flto -fuse-linker-plugin
+OPTFLAGS ?= -O3 -flto -fuse-linker-plugin
 WARNFLAGS ?= -Wall
 CFLAGS += $(OPTFLAGS) $(WARNFLAGS) -ffast-math -fno-strict-aliasing -fvisibility=hidden -I../../src -DM64P_PARALLEL
 CXXFLAGS += -fvisibility-inlines-hidden
