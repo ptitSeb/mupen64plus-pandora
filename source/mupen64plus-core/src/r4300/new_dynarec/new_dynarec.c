@@ -845,24 +845,58 @@ static void alloc_all(struct regstat *cur,int i)
 
 static void div64(int64_t dividend,int64_t divisor)
 {
+  if ((dividend) && (divisor)) {
   lo=dividend/divisor;
   hi=dividend%divisor;
+  } else {
+  lo=0;
+  hi=0;
+  }
   //DebugMessage(M64MSG_VERBOSE, "TRACE: ddiv %8x%8x %8x%8x" ,(int)reg[HIREG],(int)(reg[HIREG]>>32)
   //                                     ,(int)reg[LOREG],(int)(reg[LOREG]>>32));
 }
 static void divu64(uint64_t dividend,uint64_t divisor)
 {
+  if ((dividend) && (divisor)) {
   lo=dividend/divisor;
   hi=dividend%divisor;
+  } else {
+  lo=0;
+  hi=0;
+  }
+  //DebugMessage(M64MSG_VERBOSE, "TRACE: ddivu %8x%8x %8x%8x",(int)reg[HIREG],(int)(reg[HIREG]>>32)
+  //                                     ,(int)reg[LOREG],(int)(reg[LOREG]>>32));
+}
+static void div32(int32_t dividend,int32_t divisor)
+{
+  if ((dividend) && (divisor)) {
+  lo=dividend/divisor;
+  hi=dividend%divisor;
+  } else {
+  lo=0;
+  hi=0;
+  }
+  //DebugMessage(M64MSG_VERBOSE, "TRACE: ddiv %8x%8x %8x%8x" ,(int)reg[HIREG],(int)(reg[HIREG]>>32)
+  //                                     ,(int)reg[LOREG],(int)(reg[LOREG]>>32));
+}
+static void divu32(uint32_t dividend,uint32_t divisor)
+{
+  if ((dividend) && (divisor)) {
+  lo=dividend/divisor;
+  hi=dividend%divisor;
+  } else {
+  lo=0;
+  hi=0;
+  }
   //DebugMessage(M64MSG_VERBOSE, "TRACE: ddivu %8x%8x %8x%8x",(int)reg[HIREG],(int)(reg[HIREG]>>32)
   //                                     ,(int)reg[LOREG],(int)(reg[LOREG]>>32));
 }
 
 static void mult64(int64_t m1,int64_t m2)
 {
-   unsigned long long int op1, op2, op3, op4;
-   unsigned long long int result1, result2, result3, result4;
-   unsigned long long int temp1, temp2, temp3, temp4;
+   uint64_t op1, op2, op3, op4;
+   uint64_t result1, result2, result3, result4;
+   uint64_t temp1, temp2, temp3, temp4;
    int sign = 0;
    
    if (m1 < 0)
@@ -906,9 +940,9 @@ static void mult64(int64_t m1,int64_t m2)
 #if NEW_DYNAREC == NEW_DYNAREC_ARM
 static void multu64(uint64_t m1,uint64_t m2)
 {
-   unsigned long long int op1, op2, op3, op4;
-   unsigned long long int result1, result2, result3, result4;
-   unsigned long long int temp1, temp2, temp3, temp4;
+   uint64_t op1, op2, op3, op4;
+   uint64_t result1, result2, result3, result4;
+   uint64_t temp1, temp2, temp3, temp4;
    
    op1 = m1 & 0xFFFFFFFF;
    op2 = (m1 >> 32) & 0xFFFFFFFF;

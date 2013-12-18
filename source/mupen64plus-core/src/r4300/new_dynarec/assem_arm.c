@@ -4096,6 +4096,22 @@ static void multdiv_assemble_arm(int i,struct regstat *i_regs)
       }
       if(opcode2[i]==0x1A) // DIV
       {
+		#if 1
+        signed char m1l=get_reg(i_regs->regmap,rs1[i]);
+        signed char m2l=get_reg(i_regs->regmap,rs2[i]);
+        assert(m1l>=0);
+        assert(m2l>=0);
+        save_regs(0x100f);
+        if(m1l!=0) emit_mov(m1l,0);
+        if(m2l<1) emit_readword((int)&dynarec_local,1);
+        else if(m2l>1) emit_mov(m2l,1);
+        emit_call((int)&div32);
+        restore_regs(0x100f);
+        signed char hil=get_reg(i_regs->regmap,HIREG);
+        if(hil>=0) emit_loadreg(HIREG,hil);
+        signed char lol=get_reg(i_regs->regmap,LOREG);
+        if(lol>=0) emit_loadreg(LOREG,lol);
+		#else
         signed char d1=get_reg(i_regs->regmap,rs1[i]);
         signed char d2=get_reg(i_regs->regmap,rs2[i]);
         assert(d1>=0);
@@ -4122,6 +4138,7 @@ static void multdiv_assemble_arm(int i,struct regstat *i_regs)
         emit_negmi(quotient,quotient);
         emit_test(d1,d1);
         emit_negmi(remainder,remainder);
+		#endif
       }
       if(opcode2[i]==0x1B) // DIVU
       {
@@ -4201,8 +4218,12 @@ static void multdiv_assemble_arm(int i,struct regstat *i_regs)
         restore_regs(0x100f);
         signed char hih=get_reg(i_regs->regmap,HIREG|64);
         signed char hil=get_reg(i_regs->regmap,HIREG);
+        if(hih>=0) emit_loadreg(HIREG|64,hih);
+        if(hil>=0) emit_loadreg(HIREG,hil);
         signed char loh=get_reg(i_regs->regmap,LOREG|64);
         signed char lol=get_reg(i_regs->regmap,LOREG);
+        if(loh>=0) emit_loadreg(LOREG|64,loh);
+        if(lol>=0) emit_loadreg(LOREG,lol);
         /*signed char temp=get_reg(i_regs->regmap,-1);
         signed char rh=get_reg(i_regs->regmap,HIREG|64);
         signed char rl=get_reg(i_regs->regmap,HIREG);
@@ -4328,7 +4349,7 @@ static void multdiv_assemble_arm(int i,struct regstat *i_regs)
     // Multiply by zero is zero.
     // MIPS does not have a divide by zero exception.
     // The result is undefined, we return zero.
-/*    if((opcode2[i]&4)!=0) // 64-bit
+    if((opcode2[i]&4)!=0) // 64-bit
     {
         signed char hih=get_reg(i_regs->regmap,HIREG|64);
 		signed char hr=get_reg(i_regs->regmap,HIREG);
@@ -4338,7 +4359,7 @@ static void multdiv_assemble_arm(int i,struct regstat *i_regs)
 		if(hr>=0) emit_zeroreg(hr);
         if(loh>=0) emit_zeroreg(loh);
 		if(lr>=0) emit_zeroreg(lr);
-	} else */
+	} else
 	{
 		signed char hr=get_reg(i_regs->regmap,HIREG);
 		signed char lr=get_reg(i_regs->regmap,LOREG);
