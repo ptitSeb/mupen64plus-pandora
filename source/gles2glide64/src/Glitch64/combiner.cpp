@@ -177,7 +177,7 @@ static const char* vertex_shader =
 SHADER_HEADER
 "#define Z_MAX 65536.0                                          \n"
 "attribute highp vec4 aVertex;                                  \n"
-"attribute mediump vec4 aColor;                                   \n"	//*SEB* highp -> lowp
+"attribute mediump vec4 aColor;                                   \n"	//*SEB* highp -> mediump
 "attribute highp vec4 aMultiTexCoord0;                          \n"
 "attribute highp vec4 aMultiTexCoord1;                          \n"
 "attribute float aFog;                                          \n"
@@ -267,12 +267,14 @@ void init_combiner()
   int log_length;
 
 //#ifndef ANDROID
+#if 0
+//	unfortunatly, Pandora has not the gl_FragDepthEXT extension... So I disable this block.
   // depth shader
   fragment_depth_shader_object = glCreateShader(GL_FRAGMENT_SHADER);
 
-  char s[128];
+  char s[512];
   // ZIGGY convert a 565 texture into depth component
-  sprintf(s, "gl_FragDepth = dot(texture2D(texture0, vec2(gl_TexCoord[0])), vec4(31*64*32, 63*32, 31, 0))*%g + %g; \n", zscale/2/65535.0, 1-zscale/2);
+  sprintf(s, "gl_FragDepthEXT = dot(texture2D(texture0, vec2(gl_TexCoord[0])), vec4(31*64*32, 63*32, 31, 0))*%g + %g; \n", zscale/2/65535.0, 1-zscale/2);
   fragment_shader = (char*)malloc(strlen(fragment_shader_header)+
     strlen(s)+
     strlen(fragment_shader_end)+1);
@@ -284,7 +286,7 @@ void init_combiner()
 
   glCompileShader(fragment_depth_shader_object);
   check_compile(fragment_depth_shader_object);
-//#endif
+#endif
 
   // default shader
   fragment_shader_object = glCreateShader(GL_FRAGMENT_SHADER);

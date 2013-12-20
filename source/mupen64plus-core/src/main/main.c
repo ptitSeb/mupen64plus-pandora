@@ -194,6 +194,8 @@ int main_set_core_defaults(void)
     ConfigSetDefaultString(g_CoreConfig, "SaveStatePath", "", "Path to directory where emulator save states (snapshots) are saved. If this is blank, the default value of ${UserConfigPath}/save will be used");
     ConfigSetDefaultString(g_CoreConfig, "SaveSRAMPath", "", "Path to directory where SRAM/EEPROM data (in-game saves) are stored. If this is blank, the default value of ${UserConfigPath}/save will be used");
     ConfigSetDefaultString(g_CoreConfig, "SharedDataPath", "", "Path to a directory to search when looking for shared data files");
+    ConfigSetDefaultBool(g_CoreConfig, "DelaySI", 0, "Delay interrupt after DMA SI read/write");
+    ConfigSetDefaultInt(g_CoreConfig, "CountPerOp", 2, "Force number of cycles per emulated instruction");
 
     /* handle upgrades */
     if (bUpgrade)
@@ -734,8 +736,12 @@ m64p_error main_run(void)
     savestates_set_autoinc_slot(ConfigGetParamBool(g_CoreConfig, "AutoStateSlotIncrement"));
     savestates_select_slot(ConfigGetParamInt(g_CoreConfig, "CurrentStateSlot"));
     no_compiled_jump = ConfigGetParamBool(g_CoreConfig, "NoCompiledJump");
+	if (delay_si==-1) delay_si = ConfigGetParamBool(g_CoreConfig, "DelaySI");
+    if (count_per_op==-1) count_per_op = ConfigGetParamInt(g_CoreConfig, "CountPerOp");
+    if (count_per_op <= 0)
+        count_per_op = 2;
 
-    // initialize memory, and do byte-swapping if it's not been done yet
+	// initialize memory, and do byte-swapping if it's not been done yet
     if (g_MemHasBeenBSwapped == 0)
     {
         init_memory(1);
@@ -856,12 +862,3 @@ void main_stop(void)
     }
 #endif        
 }
-
-/*********************************************************************************************************
-* main function
-*/
-int main(int argc, char *argv[])
-{
-    return 1;
-}
-

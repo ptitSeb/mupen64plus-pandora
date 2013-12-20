@@ -55,6 +55,8 @@ int rom_size = 0;
 
 unsigned char isGoldeneyeRom = 0;
 
+extern int count_per_op;
+
 m64p_rom_header   ROM_HEADER;
 rom_params        ROM_PARAMS;
 m64p_rom_settings ROM_SETTINGS;
@@ -178,6 +180,8 @@ m64p_error open_rom(const unsigned char* romimage, unsigned int size)
         ROM_SETTINGS.status = entry->status;
         ROM_SETTINGS.players = entry->players;
         ROM_SETTINGS.rumble = entry->rumble;
+        delay_si = entry->delay_si;
+        count_per_op = entry->count_per_op;
     }
     else
     {
@@ -187,7 +191,9 @@ m64p_error open_rom(const unsigned char* romimage, unsigned int size)
         ROM_SETTINGS.status = 0;
         ROM_SETTINGS.players = 0;
         ROM_SETTINGS.rumble = 0;
-    }
+        delay_si = -1;
+        count_per_op = -1;
+   }
 
     /* print out a bunch of info about the ROM */
     DebugMessage(M64MSG_INFO, "Goodname: %s", ROM_SETTINGS.goodname);
@@ -208,6 +214,8 @@ m64p_error open_rom(const unsigned char* romimage, unsigned int size)
     DebugMessage(M64MSG_INFO, "Country: %s", buffer);
     DebugMessage(M64MSG_VERBOSE, "PC = %x", sl((unsigned int)ROM_HEADER.PC));
     DebugMessage(M64MSG_VERBOSE, "Save type: %d", ROM_SETTINGS.savetype);
+	if (delay_si>=0) DebugMessage(M64MSG_INFO, "Delay SI: %d", delay_si);
+	if (count_per_op>=0) DebugMessage(M64MSG_INFO, "Count Per OP: %d", count_per_op);
 
     //Prepare Hack for GOLDENEYE
     isGoldeneyeRom = 0;
@@ -355,6 +363,9 @@ void romdatabase_open(void)
             search->entry.savetype = DEFAULT;
             search->entry.players = DEFAULT;
             search->entry.rumble = DEFAULT; 
+			/*SEB*/
+			search->entry.delay_si=-1;
+			search->entry.count_per_op=-1;
 
             search->next_entry = NULL;
             search->next_crc = NULL;
@@ -444,6 +455,22 @@ void romdatabase_open(void)
                     search->entry.rumble = 0;
                 else
                     DebugMessage(M64MSG_WARNING, "ROM Database: Invalid rumble string on line %i", lineno);
+            }
+            else if(!strcmp(l.name, "DelaySI"))
+            {
+                if(!strcmp(l.value, "True"))
+				search->entry.delay_si = 1;
+                else if(!strcmp(l.value, "False"))
+				search->entry.delay_si = 0;
+                else
+				DebugMessage(M64MSG_WARNING, "ROM Database: Invalid DelaySI string on line %i", lineno);
+            }
+            else if(!strcmp(l.name, "CountPerOp"))
+            {
+                if (string_to_int(l.value, &value) && value >= 0 && value < 8)
+				search->entry.count_per_op = value;
+                else
+				DebugMessage(M64MSG_WARNING, "ROM Database: Invalid CountPerOp on line %i", lineno);
             }
             else
             {

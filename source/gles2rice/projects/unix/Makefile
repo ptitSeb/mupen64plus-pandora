@@ -122,7 +122,8 @@ ifeq ("$(CPU)","NONE")
 endif
 
 # base CFLAGS, LDLIBS, and LDFLAGS
-OPTFLAGS ?= -Ofast -ffast-math -flto -fuse-linker-plugin
+OPTFLAGS ?= -O4 -ffast-math 
+#-flto -fuse-linker-plugin
 WARNFLAGS ?= -Wall
 CFLAGS += $(OPTFLAGS) $(WARNFLAGS) -ffast-math -fno-strict-aliasing -fvisibility=hidden -I../../src
 CXXFLAGS += -fvisibility-inlines-hidden
