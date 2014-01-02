@@ -272,7 +272,7 @@ static int verify_dirty(void *addr);
 //#define DEBUG_CYCLE_COUNT 1
 
 // Uncomment these two lines to generate debug output:
-//#define ASSEM_DEBUG 1
+#//define ASSEM_DEBUG 1
 //#define INV_DEBUG 1
 
 // Uncomment this line to output the number of NOTCOMPILED blocks as they occur:
@@ -1762,6 +1762,7 @@ void multdiv_alloc(struct regstat *current,int i)
       current->uu&=~(1LL<<HIREG);
       current->uu&=~(1LL<<LOREG);
       alloc_reg64(current,i,HIREG);
+	  alloc_reg64(current,i,LOREG);
       //if(HOST_REGS>10) alloc_reg64(current,i,LOREG);	//*SEB* Why commenting this line? uncommenting make SM64 freeze after title (before mario head and spinning stars)
       alloc_reg64(current,i,rs1[i]);
       alloc_reg64(current,i,rs2[i]);
@@ -1778,10 +1779,18 @@ void multdiv_alloc(struct regstat *current,int i)
     // Multiply by zero is zero.
     // MIPS does not have a divide by zero exception.
     // The result is undefined, we return zero.
-	alloc_reg(current,i,HIREG);
-	alloc_reg(current,i,LOREG);
-	current->is32|=1LL<<HIREG;
-	current->is32|=1LL<<LOREG;
+	if((opcode2[i]&4)==0) // 32-bit
+	{
+		alloc_reg(current,i,HIREG);
+		alloc_reg(current,i,LOREG);
+		current->is32|=1LL<<HIREG;
+		current->is32|=1LL<<LOREG;
+	} else {
+		alloc_reg64(current,i,HIREG);
+		alloc_reg64(current,i,LOREG);
+		current->is32&=~(1LL<<HIREG);
+		current->is32&=~(1LL<<LOREG);
+	}
 	dirty_reg(current,HIREG);
 	dirty_reg(current,LOREG);
   }

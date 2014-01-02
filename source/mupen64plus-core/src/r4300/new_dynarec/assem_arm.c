@@ -4096,7 +4096,7 @@ static void multdiv_assemble_arm(int i,struct regstat *i_regs)
       }
       if(opcode2[i]==0x1A) // DIV
       {
-		#if 1
+		#if 0
         signed char m1l=get_reg(i_regs->regmap,rs1[i]);
         signed char m2l=get_reg(i_regs->regmap,rs2[i]);
         assert(m1l>=0);
@@ -4142,7 +4142,23 @@ static void multdiv_assemble_arm(int i,struct regstat *i_regs)
       }
       if(opcode2[i]==0x1B) // DIVU
       {
-        signed char d1=get_reg(i_regs->regmap,rs1[i]); // dividend
+	    #if 0
+		signed char m1l=get_reg(i_regs->regmap,rs1[i]);
+		signed char m2l=get_reg(i_regs->regmap,rs2[i]);
+		assert(m1l>=0);
+		assert(m2l>=0);
+		save_regs(0x100f);
+		if(m1l!=0) emit_mov(m1l,0);
+		if(m2l<1) emit_readword((int)&dynarec_local,1);
+		else if(m2l>1) emit_mov(m2l,1);
+		emit_call((int)&divu32);
+		restore_regs(0x100f);
+		signed char hil=get_reg(i_regs->regmap,HIREG);
+		if(hil>=0) emit_loadreg(HIREG,hil);
+		signed char lol=get_reg(i_regs->regmap,LOREG);
+		if(lol>=0) emit_loadreg(LOREG,lol);
+		#else
+		signed char d1=get_reg(i_regs->regmap,rs1[i]); // dividend
         signed char d2=get_reg(i_regs->regmap,rs2[i]); // divisor
         assert(d1>=0);
         assert(d2>=0);
@@ -4162,6 +4178,7 @@ static void multdiv_assemble_arm(int i,struct regstat *i_regs)
         emit_adcs(quotient,quotient,quotient);
         emit_shrcc_imm(d2,1,d2);
         emit_jcc((int)out-16); // -4
+		#endif
       }
     }
     else // 64-bit
