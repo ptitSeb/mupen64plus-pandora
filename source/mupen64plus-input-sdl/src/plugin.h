@@ -100,6 +100,10 @@ enum EButton
     L_TRIG,
     MEMPAK,
     RUMBLEPAK,
+    R_CBUTTON2,
+    L_CBUTTON2,
+    D_CBUTTON2,
+    U_CBUTTON2,
     X_AXIS,
     Y_AXIS,
     NUM_BUTTONS
@@ -113,6 +117,10 @@ typedef struct
     int axis_deadzone;  // -1 for default, or >= 0 for custom value
     int hat, hat_pos;   // hat + hat position; -1 if not assigned
     int mouse;          // mouse button
+	int mouse_up;		// mouse direction pseudo buttons
+	int mouse_down;
+	int mouse_left;
+	int mouse_right;
 } SButtonMap;
 
 typedef struct
@@ -130,7 +138,7 @@ typedef struct
     BUTTONS buttons;
 
     // mappings
-    SButtonMap    button[16];       // 14 buttons; in the order of EButton + mempak/rumblepak switches
+    SButtonMap    button[NUM_BUTTONS];       // 14 buttons; in the order of EButton + mempak/rumblepak switches
     SAxisMap      axis[2];          // 2 axis
     int           device;           // joystick device; -1 = keyboard; -2 = none
     int           mouse;            // mouse enabled: 0 = no; 1 = yes
@@ -139,6 +147,10 @@ typedef struct
     int           axis_deadzone[2]; // minimum absolute value before analog movement is recognized
     int           axis_peak[2];     // highest analog value returned by SDL, used for scaling
     float         mouse_sens[2];    // mouse sensitivity
+	int			  mouse_up;
+	int			  mouse_down;
+	int			  mouse_left;
+	int			  mouse_right;
 } SController;
 
 /* global data definitions */

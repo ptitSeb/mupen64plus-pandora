@@ -62,6 +62,10 @@ static const char *button_names[] = {
     "L Trig",       // L_TRIG
     "Mempak switch",
     "Rumblepak switch",
+    "C Button2 R",   // R_CBUTTON alternate
+    "C Button2 L",   // L_CBUTTON alternate
+    "C Button2 D",   // D_CBUTTON alternate
+    "C Button2 U",   // U_CBUTTON alternate
     "X Axis",       // X_AXIS
     "Y Axis"        // Y_AXIS
 };
@@ -89,7 +93,7 @@ static void clear_controller(int iCtrlIdx)
     controller[iCtrlIdx].control->Present = 0;
     controller[iCtrlIdx].control->RawData = 0;
     controller[iCtrlIdx].control->Plugin = PLUGIN_NONE;
-    for( b = 0; b < 16; b++ )
+    for( b = 0; b < NUM_BUTTONS; b++ )
     {
         controller[iCtrlIdx].button[b].button = -1;
         controller[iCtrlIdx].button[b].key = SDL_SCANCODE_UNKNOWN;
@@ -98,6 +102,10 @@ static void clear_controller(int iCtrlIdx)
         controller[iCtrlIdx].button[b].hat = -1;
         controller[iCtrlIdx].button[b].hat_pos = -1;
         controller[iCtrlIdx].button[b].mouse = -1;
+        controller[iCtrlIdx].button[b].mouse_up = 0;
+        controller[iCtrlIdx].button[b].mouse_down = 0;
+        controller[iCtrlIdx].button[b].mouse_left = 0;
+        controller[iCtrlIdx].button[b].mouse_right = 0;
     }
     for( b = 0; b < 2; b++ )
     {
@@ -182,7 +190,7 @@ static int get_sdl_num_joysticks(void)
 static int load_controller_config(const char *SectionName, int i, int sdlDeviceIdx)
 {
     m64p_handle pConfig;
-    char input_str[256], value1_str[16], value2_str[16];
+    char input_str[256], value1_str[NUM_BUTTONS], value2_str[NUM_BUTTONS];
     const char *config_ptr;
     int j;
 
@@ -257,9 +265,15 @@ static int load_controller_config(const char *SectionName, int i, int sdlDeviceI
             if (lastchar > value1_str && *lastchar == ')') *lastchar = 0;
             controller[i].button[j].hat_pos = get_hat_pos_by_name(value1_str);
         }
-        if ((config_ptr = strstr(input_str, "mouse")) != NULL)
-            if (sscanf(config_ptr, "mouse(%i)", &controller[i].button[j].mouse) != 1)
+        if ((config_ptr = strstr(input_str, "mouse")) != NULL) {
+			// check for mouse_pseudo button first
+			if ((config_ptr = strstr(input_str, "mouse_up")) != NULL) {controller[i].button[j].mouse_up=1; controller[i].mouse_up=1;}
+			else if ((config_ptr = strstr(input_str, "mouse_down")) != NULL) {controller[i].button[j].mouse_down=1; controller[i].mouse_down=1;}
+			else if ((config_ptr = strstr(input_str, "mouse_left")) != NULL) {controller[i].button[j].mouse_left=1; controller[i].mouse_left=1;}
+			else if ((config_ptr = strstr(input_str, "mouse_right")) != NULL) {controller[i].button[j].mouse_right=1; controller[i].mouse_right=1;}
+            else if (sscanf(config_ptr, "mouse(%i)", &controller[i].button[j].mouse) != 1)
                 DebugMessage(M64MSG_WARNING, "parsing error in mouse() parameter of button '%s' for controller %i", button_names[j], i + 1);
+		}
     }
     /* load configuration for the 2 analog joystick axes */
     for (j = X_AXIS; j <= Y_AXIS; j++)
@@ -367,6 +381,26 @@ static void init_controller_config(int iCtrlIdx, const char *pccDeviceName, eMod
         if (controller[iCtrlIdx].button[j].mouse >= 0)
         {
             sprintf(Param, "mouse(%i) ", controller[iCtrlIdx].button[j].mouse);
+            strcat(ParamString, Param);
+        }
+        if (controller[iCtrlIdx].button[j].mouse_up > 0)
+        {
+            sprintf(Param, "mouse_up ");
+            strcat(ParamString, Param);
+        }
+        if (controller[iCtrlIdx].button[j].mouse_down > 0)
+        {
+            sprintf(Param, "mouse_down ");
+            strcat(ParamString, Param);
+        }
+        if (controller[iCtrlIdx].button[j].mouse_right > 0)
+        {
+            sprintf(Param, "mouse_right ");
+            strcat(ParamString, Param);
+        }
+        if (controller[iCtrlIdx].button[j].mouse_left > 0)
+        {
+            sprintf(Param, "mouse_left ");
             strcat(ParamString, Param);
         }
         if (j == 0)

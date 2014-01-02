@@ -104,7 +104,11 @@ static unsigned short button_bits[] = {
     0x1000,  // R_TRIG
     0x2000,  // L_TRIG
     0x4000,  // Mempak switch
-    0x8000   // Rumblepak switch
+    0x8000,  // Rumblepak switch
+    0x0100,  // R_CBUTTON alternate
+    0x0200,  // L_CBUTTON alternate
+    0x0400,  // D_CBUTTON alternate
+    0x0800   // U_CBUTTON alternate
 };
 
 static int romopen = 0;         // is a rom opened
@@ -261,10 +265,10 @@ doSdlKeys(unsigned char* keystate)
     static int grabmouse = 1, grabtoggled = 0;
 
     axis_max_val = 80;
-    if (keystate[SDL_SCANCODE_RCTRL])
+/*    if (keystate[SDL_SCANCODE_RCTRL])
         axis_max_val -= 40;
     if (keystate[SDL_SCANCODE_RSHIFT])
-        axis_max_val -= 20;
+        axis_max_val -= 20;*/
 
     for( c = 0; c < 4; c++ )
     {
@@ -298,7 +302,7 @@ doSdlKeys(unsigned char* keystate)
         }
         if (controller[c].mouse)
         {
-            if (keystate[SDL_SCANCODE_LCTRL] && keystate[SDL_SCANCODE_LALT])
+        /*    if (keystate[SDL_SCANCODE_LCTRL] && keystate[SDL_SCANCODE_LALT])
             {
                 if (!grabtoggled)
                 {
@@ -314,6 +318,7 @@ doSdlKeys(unsigned char* keystate)
                 }
             }
             else grabtoggled = 0;
+		*/
         }
     }
 }
@@ -473,7 +478,7 @@ EXPORT void CALL GetKeys( int Control, BUTTONS *Keys )
 
     if( controller[Control].device >= 0 )
     {
-        for( b = 0; b < 16; b++ )
+        for( b = 0; b < NUM_BUTTONS; b++ )
         {
             if( controller[Control].button[b].button >= 0 )
                 if( SDL_JoystickGetButton( controller[Control].joystick, controller[Control].button[b].button ) )
@@ -556,7 +561,7 @@ EXPORT void CALL GetKeys( int Control, BUTTONS *Keys )
 
     // process mouse events
     mstate = SDL_GetMouseState( NULL, NULL );
-    for( b = 0; b < 16; b++ )
+    for( b = 0; b < NUM_BUTTONS; b++ )
     {
         if( controller[Control].button[b].mouse < 1 )
             continue;
@@ -564,7 +569,8 @@ EXPORT void CALL GetKeys( int Control, BUTTONS *Keys )
             controller[Control].buttons.Value |= button_bits[b];
     }
 
-    if (controller[Control].mouse)
+    if ((controller[Control].mouse)
+	   || ((controller[Control].mouse_up) || (controller[Control].mouse_down) || (controller[Control].mouse_left) || (controller[Control].mouse_right) ))
     {
 #if SDL_VERSION_ATLEAST(2,0,0)
 #warning SDL mouse grabbing not yet supported with SDL 2.0
@@ -599,13 +605,31 @@ EXPORT void CALL GetKeys( int Control, BUTTONS *Keys )
             axis_val = -80;
         else if (axis_val > 80)
             axis_val = 80;
-        controller[Control].buttons.X_AXIS = axis_val;
+		if (controller[Control].mouse)
+			controller[Control].buttons.X_AXIS = axis_val;
+		else {
+			for( b = 0; b < NUM_BUTTONS; b++ ) {
+				if( controller[Control].button[b].mouse_left > 0 )
+                    if (controller[Control].mouse_left) controller[Control].buttons.Value |= (axis_val<-40)?button_bits[b]:0;
+				if( controller[Control].button[b].mouse_right > 0 )
+                    if (controller[Control].mouse_right) controller[Control].buttons.Value |= (axis_val>40)?button_bits[b]:0;
+			}
+		}
         axis_val = mousey_residual;
         if (axis_val < -80)
             axis_val = -80;
         else if (axis_val > 80)
             axis_val = 80;
-        controller[Control].buttons.Y_AXIS = -axis_val;
+		if (controller[Control].mouse)
+			controller[Control].buttons.Y_AXIS = -axis_val;
+		else {
+			for( b = 0; b < NUM_BUTTONS; b++ ) {
+				if( controller[Control].button[b].mouse_up > 0 )
+                    if (controller[Control].mouse_up) controller[Control].buttons.Value |= (axis_val<-40)?button_bits[b]:0;
+				if( controller[Control].button[b].mouse_down > 0 )
+                    if (controller[Control].mouse_down) controller[Control].buttons.Value |= (axis_val>40)?button_bits[b]:0;
+			}
+		}
         /* the mouse x/y values decay exponentially */
         mousex_residual = (mousex_residual * 224) / 256;
         mousey_residual = (mousey_residual * 224) / 256;
@@ -885,7 +909,8 @@ EXPORT int CALL RomOpen(void)
             controller[i].joystick = NULL;
 
     // grab mouse
-    if (controller[0].mouse || controller[1].mouse || controller[2].mouse || controller[3].mouse)
+    if ((controller[0].mouse || controller[1].mouse || controller[2].mouse || controller[3].mouse) 
+	  ||(controller[0].mouse_up || controller[0].mouse_down || controller[0].mouse_left || controller[0].mouse_right))
     {
 #if SDL_VERSION_ATLEAST(2,0,0)
 #warning SDL mouse grabbing not yet supported with SDL 2.0
