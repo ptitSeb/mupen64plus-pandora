@@ -120,7 +120,9 @@ Check_FrameSkip;
   rdp.vn = n = (rdp.cmd0 >> 12) & 0xFF;
   rdp.v0 = v0 = ((rdp.cmd0 >> 1) & 0x7F) - n;
 
+  #ifdef EXTREME_LOGGING
   FRDP ("uc2:vertex n: %d, v0: %d, from: %08lx\n", n, v0, addr);
+  #endif
 
   if (v0 < 0)
   {
@@ -253,7 +255,9 @@ Check_FrameSkip;
   wxUint8 where = (wxUint8)((rdp.cmd0 >> 16) & 0xFF);
   wxUint16 vtx = (wxUint16)((rdp.cmd0 >> 1) & 0xFFFF);
 
+  #ifdef EXTREME_LOGGING
   FRDP ("uc2:modifyvtx: vtx: %d, where: 0x%02lx, val: %08lx - ", vtx, where, rdp.cmd1);
+  #endif
   uc0_modifyvtx(where, vtx, rdp.cmd1);
 }
 
@@ -262,7 +266,9 @@ static void uc2_culldl ()
   wxUint16 vStart = (wxUint16)(rdp.cmd0 & 0xFFFF) >> 1;
   wxUint16 vEnd = (wxUint16)(rdp.cmd1 & 0xFFFF) >> 1;
   wxUint32 cond = 0;
+  #ifdef EXTREME_LOGGING
   FRDP ("uc2:culldl start: %d, end: %d\n", vStart, vEnd);
+  #endif
 
   if (vEnd < vStart) return;
   for (wxUint16 i=vStart; i<=vEnd; i++)
@@ -315,10 +321,12 @@ Check_FrameSkip;
     return;
   }
 
+  #ifdef EXTREME_LOGGING
   FRDP("uc2:tri1 #%d - %d, %d, %d\n", rdp.tri_n,
     ((rdp.cmd0 >> 17) & 0x7F),
     ((rdp.cmd0 >> 9) & 0x7F),
     ((rdp.cmd0 >> 1) & 0x7F));
+  #endif
 
   VERTEX *v[3] = {
     &rdp.vtx[(rdp.cmd0 >> 17) & 0x7F],
@@ -359,6 +367,7 @@ Check_FrameSkip;
 
   LRDP("uc2:quad");
 
+  #ifdef EXTREME_LOGGING
   FRDP(" #%d, #%d - %d, %d, %d - %d, %d, %d\n", rdp.tri_n, rdp.tri_n+1,
     ((rdp.cmd0 >> 17) & 0x7F),
     ((rdp.cmd0 >> 9) & 0x7F),
@@ -366,6 +375,7 @@ Check_FrameSkip;
     ((rdp.cmd1 >> 17) & 0x7F),
     ((rdp.cmd1 >> 9) & 0x7F),
     ((rdp.cmd1 >> 1) & 0x7F));
+  #endif
 
   VERTEX *v[6] = {
     &rdp.vtx[(rdp.cmd0 >> 17) & 0x7F],
@@ -389,9 +399,11 @@ Check_FrameSkip;
     uc6_ldtx_rect_r ();
   else
   {
-    FRDP("uc2:line3d #%d, #%d - %d, %d\n", rdp.tri_n, rdp.tri_n+1,
+  #ifdef EXTREME_LOGGING
+  FRDP("uc2:line3d #%d, #%d - %d, %d\n", rdp.tri_n, rdp.tri_n+1,
       (rdp.cmd0 >> 17) & 0x7F,
       (rdp.cmd0 >> 9) & 0x7F);
+  #endif
 
     VERTEX *v[3] = {
       &rdp.vtx[(rdp.cmd0 >> 17) & 0x7F],
@@ -426,7 +438,9 @@ static void uc2_dma_io ()
 
 static void uc2_pop_matrix ()
 {
-  FRDP ("uc2:pop_matrix %08lx, %08lx\n", rdp.cmd0, rdp.cmd1);
+ #ifdef EXTREME_LOGGING
+ FRDP ("uc2:pop_matrix %08lx, %08lx\n", rdp.cmd0, rdp.cmd1);
+ #endif
 
   // Just pop the modelview matrix
   modelview_pop (rdp.cmd1 >> 6);
@@ -442,12 +456,16 @@ static void uc2_geom_mode ()
     ((rdp.cmd1 & 0x00000600) << 3) |
     ((rdp.cmd1 & 0x00200000) >> 12);
 
+  #ifdef EXTREME_LOGGING
   FRDP("uc2:geom_mode c:%08lx, s:%08lx ", clr_mode, set_mode);
+  #endif
 
   rdp.geom_mode &= clr_mode;
   rdp.geom_mode |= set_mode;
 
+  #ifdef EXTREME_LOGGING
   FRDP ("result:%08lx\n", rdp.geom_mode);
+  #endif
 
   if (rdp.geom_mode & 0x00000001) // Z-Buffer enable
   {
@@ -569,7 +587,9 @@ static void uc2_matrix ()
 
   default:
     FRDP_E ("Unknown matrix command, %02lx", command);
-    FRDP ("Unknown matrix command, %02lx", command);
+    #ifdef EXTREME_LOGGING
+	FRDP ("Unknown matrix command, %02lx", command);
+	#endif
   }
 
 #ifdef EXTREME_LOGGING
@@ -594,7 +614,9 @@ static void uc2_moveword ()
   wxUint16 offset = (wxUint16)(rdp.cmd0 & 0xFFFF);
   wxUint32 data = rdp.cmd1;
 
+  #ifdef EXTREME_LOGGING
   FRDP ("uc2:moveword ");
+  #endif
 
   switch (index)
   {
@@ -641,7 +663,9 @@ static void uc2_moveword ()
   case 0x02:
     rdp.num_lights = data / 24;
     rdp.update |= UPDATE_LIGHTS;
-    FRDP ("numlights: %d\n", rdp.num_lights);
+    #ifdef EXTREME_LOGGING
+	FRDP ("numlights: %d\n", rdp.num_lights);
+	#endif
     break;
 
   case 0x04:
@@ -650,12 +674,16 @@ static void uc2_moveword ()
       rdp.clip_ratio = sqrt((float)rdp.cmd1);
       rdp.update |= UPDATE_VIEWPORT;
     }
+	#ifdef EXTREME_LOGGING
     FRDP ("mw_clip %08lx, %08lx\n", rdp.cmd0, rdp.cmd1);
+	#endif
     break;
 
   case 0x06:  // moveword SEGMENT
     {
-      FRDP ("SEGMENT %08lx -> seg%d\n", data, offset >> 2);
+	  #ifdef EXTREME_LOGGING
+	  FRDP ("SEGMENT %08lx -> seg%d\n", data, offset >> 2);
+	  #endif
       if ((data&BMASK)<BMASK)
         rdp.segment[(offset >> 2) & 0xF] = data;
     }
@@ -666,7 +694,9 @@ static void uc2_moveword ()
     {
       rdp.fog_multiplier = (short)(rdp.cmd1 >> 16);
       rdp.fog_offset = (short)(rdp.cmd1 & 0x0000FFFF);
-      FRDP ("fog: multiplier: %f, offset: %f\n", rdp.fog_multiplier, rdp.fog_offset);
+	  #ifdef EXTREME_LOGGING
+	  FRDP ("fog: multiplier: %f, offset: %f\n", rdp.fog_multiplier, rdp.fog_offset);
+	  #endif
 
       //offset must be 0 for move_fog, but it can be non zero in Nushi Zuri 64 - Shiokaze ni Notte
       //low-level display list has setothermode commands in this place, so this is obviously not move_fog.
@@ -678,7 +708,9 @@ static void uc2_moveword ()
   case 0x0a:  // moveword LIGHTCOL
     {
       int n = offset / 24;
+	  #ifdef EXTREME_LOGGING			
       FRDP ("lightcol light:%d, %08lx\n", n, data);
+	  #endif
 
       rdp.light[n].r = (float)((data >> 24) & 0xFF) / 255.0f;
       rdp.light[n].g = (float)((data >> 16) & 0xFF) / 255.0f;
@@ -698,7 +730,9 @@ static void uc2_moveword ()
 
   default:
     FRDP_E("uc2:moveword unknown (index: 0x%08lx, offset 0x%08lx)\n", index, offset);
+	#ifdef EXTREME_LOGGING		  
     FRDP ("unknown (index: 0x%08lx, offset 0x%08lx)\n", index, offset);
+	#endif
   }
 }
 
@@ -710,7 +744,9 @@ static void uc2_movemem ()
   wxUint32 addr = segoffset(rdp.cmd1);
   int ofs = (rdp.cmd0 >> 5) & 0x7F8;
 
+  #ifdef EXTREME_LOGGING
   FRDP ("uc2:movemem ofs:%d ", ofs);
+  #endif
 
   switch (idx)
   {
@@ -737,8 +773,10 @@ static void uc2_movemem ()
 
       rdp.update |= UPDATE_VIEWPORT;
 
+	  #ifdef EXTREME_LOGGING
       FRDP ("viewport scale(%d, %d, %d), trans(%d, %d, %d), from:%08lx\n", scale_x, scale_y, scale_z,
         trans_x, trans_y, trans_z, a);
+	  #endif
     }
     break;
 
@@ -760,7 +798,9 @@ static void uc2_movemem ()
           if (!dir_x && !dir_y)
             rdp.use_lookat = FALSE;
         }
-        FRDP("lookat_%d (%f, %f, %f)\n", n, rdp.lookat[n][0], rdp.lookat[n][1], rdp.lookat[n][2]);
+		#ifdef EXTREME_LOGGING
+		FRDP("lookat_%d (%f, %f, %f)\n", n, rdp.lookat[n][0], rdp.lookat[n][1], rdp.lookat[n][2]);
+		#endif
         return;
       }
       n -= 2;
@@ -792,10 +832,10 @@ static void uc2_movemem ()
 #ifdef EXTREME_LOGGING
       FRDP ("light: n: %d, pos: x: %f, y: %f, z: %f, ca: %f, la:%f, qa: %f\n",
         n, rdp.light[n].x, rdp.light[n].y, rdp.light[n].z, rdp.light[n].ca, rdp.light[n].la, rdp.light[n].qa);
-#endif
       FRDP ("light: n: %d, r: %.3f, g: %.3f, b: %.3f. dir: x: %.3f, y: %.3f, z: %.3f\n",
         n, rdp.light[n].r, rdp.light[n].g, rdp.light[n].b,
         rdp.light[n].dir_x, rdp.light[n].dir_y, rdp.light[n].dir_z);
+#endif
     }
     break;
 
@@ -816,7 +856,9 @@ static void uc2_movemem ()
 
   default:
     FRDP ("uc2:matrix unknown (%d)\n", idx);
+#ifdef EXTREME_LOGGING
     FRDP ("** UNKNOWN %d\n", idx);
+#endif
   }
 }
 
@@ -834,7 +876,9 @@ static void uc2_dlist_cnt ()
 {
   wxUint32 addr = segoffset(rdp.cmd1) & BMASK;
   int count = rdp.cmd0 & 0x000000FF;
+  #ifdef EXTREME_LOGGING
   FRDP ("dl_count - addr: %08lx, count: %d\n", addr, count);
+  #endif
   if (addr == 0)
     return;
 

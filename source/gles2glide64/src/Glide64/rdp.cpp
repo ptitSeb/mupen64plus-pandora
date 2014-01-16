@@ -4255,20 +4255,20 @@ static void rdphalf_1()
   }
   else
   {
+#ifdef EXTREME_LOGGING
     LRDP("rdphalf_1 - IGNORED\n");
+#endif
   }
 }
 
 static void rdphalf_2()
 {
   RDP_E("rdphalf_2 - IGNORED\n");
-  LRDP("rdphalf_2 - IGNORED\n");
 }
 
 static void rdphalf_cont()
 {
   RDP_E("rdphalf_cont - IGNORED\n");
-  LRDP("rdphalf_cont - IGNORED\n");
 }
 
 /******************************************************************
@@ -4283,8 +4283,9 @@ extern "C" {
 #endif
 EXPORT void CALL ProcessRDPList(void)
 {
-  LOG ("ProcessRDPList ()\n");
+#ifdef EXTREME_LOGGING
   LRDP("ProcessRDPList ()\n");
+#endif
 
  // SoftLocker lock(mutexProcessDList);
   if (/*!lock.IsOk()*/0) //mutex is busy
