@@ -1,5 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *   Mupen64plus-rsp-hle - alist.h                                         *
+ *   Mupen64plus-rsp-hle - alist_internal.h                                *
  *   Mupen64Plus homepage: http://code.google.com/p/mupen64plus/           *
  *   Copyright (C) 2002 Hacktarux                                          *
  *                                                                         *
@@ -19,15 +19,39 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef ALIST_H
-#define ALIST_H
+#ifndef ALIST_INTERNAL_H
+#define ALIST_INTERNAL_H
 
-void alist_process_ABI1();
-void alist_process_ABI2();
-void alist_process_ABI3();
+#include <stdint.h>
 
-// FIXME: to remove when isZeldaABI/isMKABI workaround is gone
-void init_ucode2();
+typedef void (*acmd_callback_t)(uint32_t inst1, uint32_t inst2);
+
+/*
+ * Audio flags
+ */
+
+#define A_INIT          0x01
+#define A_CONTINUE      0x00
+#define A_LOOP          0x02
+#define A_OUT           0x02
+#define A_LEFT          0x02
+#define A_RIGHT         0x00
+#define A_VOL           0x04
+#define A_RATE          0x00
+#define A_AUX           0x08
+#define A_NOAUX         0x00
+#define A_MAIN          0x00
+#define A_MIX           0x10
+
+/* FIXME: this decomposition into 3 ABI is not accurate,
+ * there are a least 9 or 10 different ABI, each with one or a few revisions
+ * for a total of almost 16 differents audio ucode.
+ *
+ * ABI2 in fact is a mix of at least 7 differents ABI which are mostly compatible
+ * but not totally, that's why there is a isZeldaABI/isMKABI workaround.
+ */
+extern const acmd_callback_t ABI1[0x10];
+extern const acmd_callback_t ABI2[0x20];
+extern const acmd_callback_t ABI3[0x10];
 
 #endif
-

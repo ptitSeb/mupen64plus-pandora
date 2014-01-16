@@ -108,7 +108,7 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     CPU := ARM
     ARCH_DETECTED := 32BITS
     PIC ?= 1
-    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char
+    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ftree-vectorize
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
   endif
 endif
@@ -235,10 +235,11 @@ SOURCE = \
 	$(SRCDIR)/alist.c \
 	$(SRCDIR)/cicx105.c \
 	$(SRCDIR)/jpeg.c \
-	$(SRCDIR)/ucode3.cpp \
-	$(SRCDIR)/ucode2.cpp \
-	$(SRCDIR)/ucode1.cpp \
-	$(SRCDIR)/ucode3mp3.cpp
+	$(SRCDIR)/musyx.c \
+	$(SRCDIR)/ucode3.c \
+	$(SRCDIR)/ucode2.c \
+	$(SRCDIR)/ucode1.c \
+	$(SRCDIR)/ucode3mp3.c
 
 # generate a list of object files build, make a temporary directory for them
 OBJECTS := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(filter %.c, $(SOURCE)))
