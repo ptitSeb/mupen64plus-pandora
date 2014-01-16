@@ -61,25 +61,13 @@ static int min_filter1, mag_filter1, wrap_s1, wrap_t1;
 
 unsigned char *filter(unsigned char *source, int width, int height, int *width2, int *height2);
 
-#define TEXBSP
+//#define TEXBSP
 #ifdef TEXBSP
 typedef struct _texbsp
 {
   unsigned int id;
   struct _texbsp *left;
   struct _texbsp *right;
-} texbsp;
-
-static int nbTex = 0;
-static texbsp *list = NULL;
-#elif defined(TEXREDBLACK)
-typedef struct _texbsp
-{
-  unsigned int id;
-  int color;
-  struct _texbsp *left;
-  struct _texbsp *right;
-  struct _texbsp *parent;
 } texbsp;
 
 static int nbTex = 0;
@@ -100,202 +88,31 @@ extern PFNGLDELETERENDERBUFFERSEXTPROC glDeleteRenderbuffersEXT;
 extern PFNGLDELETEFRAMEBUFFERSEXTPROC glDeleteFramebuffersEXT;
 extern PFNGLCOMPRESSEDTEXIMAGE2DARBPROC glCompressedTexImage2DARB;
 #endif
-#ifdef TEXREDBLACK
-// utilitie function for red-black tree
-// taken from Wikipedia
-// http://en.wikipedia.org/wiki/Red-black_tree
-#define BLACK 	0
-#define RED		1
-//**** Family stuff ****
-texbsp *grandparent(texbsp *n)
+#ifdef TEXBSP
+void print_tex(bool detail=false)
 {
- if ((n != NULL) && (n->parent != NULL))
-  return n->parent->parent;
- else
-  return NULL;
+	texbsp *bsp = list;
+	int i=0;
+	if (!bsp) {
+		printf("empty list (%s)", (nbTex==i)?"OK":"/!\\ KO");
+		return;
+	}
+	bool ok=true;
+	while (bsp->left) bsp=bsp->left;
+	do {
+		i++;
+		if (detail) printf("%u\t", bsp->id);
+		if (bsp->right) if (bsp->id>=bsp->right->id) ok=false;
+		bsp=bsp->right;
+	} while (bsp);
+	printf("%s%s (taille %i/%i %s)\n",(detail)?"\n":"", (ok)?"OK":"KO", nbTex, i, (nbTex==i)?"OK":"/!\\ KO");
+	if (nbTex!=i && !detail) print_tex(true);
 }
-texbsp *sibling(texbsp *n) 
-{
- if ((n != NULL) && (n->parent != NULL))
-  if (n == n->parent->left)
-    return n->parent->right;
-  else
-    return n->parent->left;
- else
-	return NULL;
-}
-texbsp *uncle(texbsp *n)
-{
- texbsp *g = grandparent(n);
- if (g == NULL)
-  return NULL; // No grandparent means no uncle
- if (n->parent == g->left)
-  return g->right;
- else
-  return g->left;
-}
-//**** Search functions ****
-texbsp* lookup_node(GLuint key) 
-{
- texbsp* n = texlist;
- while (n != NULL) {
-  int comp_result = (int)key - (int)n->id;
-  if (comp_result == 0) {
-   return n;
-  } else if (comp_result < 0) {
-   n = n->left;
-  } else {
-   n = n->right;
-  }
- }
- return n;
-}
-GLuint rbtree_lookup(GLuint key) 
-{
- texbsp* n = lookup_node(key);
- return n == NULL ? NULL : n->id;
-}
-//**** Basic insertion / replace ****
-texbsp* new_node(GLuint id, int node_color, texbsp* left, texbsp* right) 
-{
-  texbsp* result = malloc(sizeof(texbsp));
-  result->id = id;
-  result->color = node_color;
-  result->left = left;
-  result->right = right;
-  if (left  != NULL)  left->parent = result;
-  if (right != NULL) right->parent = result;
-  result->parent = NULL;
-  return result;
-}
-void replace_node(texbsp* oldn, texbsp* newn) 
-{
- if (oldn->parent == NULL) {
-  list = newn;
- } else {
-  if (oldn == oldn->parent->left)
-   oldn->parent->left = newn;
-  else
-   oldn->parent->right = newn;
- }
- if (newn != NULL) {
-  newn->parent = oldn->parent;
- }
-}
-//**** Rotation functions ****
-void rotate_left(texbsp* n) 
-{
- texbsp* r = n->right;
- replace_node(n, r);
- n->right = r->left;
- if (r->left != NULL) {
-  r->left->parent = n;
- }
- r->left = n;
- n->parent = r;
-}
-void rotate_right(texbsp* n) 
-{
- node L = n->left;
- replace_node(n, L);
- n->left = L->right;
- if (L->right != NULL) {
-  L->right->parent = n;
- }
- L->right = n;
- n->parent = L;
-}
-//**** Insertion cases ****
-void insert_case1(texbsp *n)
-{
- if (n->parent == NULL)
-  n->color = BLACK;
- else
-  insert_case2(n);
-}
-void insert_case2(texbsp *n)
-{
- if (n->parent->color == BLACK)
-  return; 
- else
-  insert_case3(n);
-}
-void insert_case3(texbsp *n)
-{
- texbsp *u = uncle(n), *g;
- 
- if ((u != NULL) && (u->color == RED)) {
-  n->parent->color = BLACK;
-  u->color = BLACK;
-  g = grandparent(n);
-  g->color = RED;
-  insert_case1(g);
- } else {
-  insert_case4(n);
- }
-}
-void insert_case4(texbsp *n)
-{
- texbsp *g = grandparent(n);
- 
- if ((n == n->parent->right) && (n->parent == g->left)) {
-  rotate_left(n->parent);
-  n = n->left; 
- } else if ((n == n->parent->left) && (n->parent == g->right)) {
-  rotate_right(n->parent);
-  n = n->right; 
- }
- insert_case5(n);
-}
-void insert_case5(texbsp *n)
-{
- struct node *g = grandparent(n);
- 
- n->parent->color = BLACK;
- g->color = RED;
- if (n == n->parent->left)
-  rotate_right(g);
- else
-  rotate_left(g);
-}
-void rbtree_insert(GLuint key) 
-{
- texbsp* inserted_node = new_node(key, RED, NULL, NULL);
- if (list == NULL) {
-  list = inserted_node;
- } else {
-  texbsp* n = t->root;
-  while (1) {
-   int comp_result = (int)key - (int)n->id;
-   if (comp_result == 0) {
-    free (inserted_node);
-    return;
-   } else if (comp_result < 0) {
-    if (n->left == NULL) {
-     n->left = inserted_node;
-     break;
-    } else {
-     n = n->left;
-    }
-   } else {
-    if (n->right == NULL) {
-     n->right = inserted_node;
-     break;
-    } else {
-     n = n->right;
-    }
-   }
-  }
-  inserted_node->parent = n;
- }
- insert_case1(t, inserted_node);
-}
-//**** Removing cases ****
-
 #endif
 void remove_tex(unsigned int idmin, unsigned int idmax)
 {
 #ifdef TEXBSP
+if ((idmin==18449 && idmax==22545) || (idmin==28689 || idmax==30737)) {printf("delete %u->%u, list=", idmin, idmax); print_tex(true);}
 	GLuint texlist[nbTex];
 	int	nbdel = 0;
 	// 1st look at initial point that is <= at idmin and than go right until id > idmax. Deleting all in between, and reattach list is needed
@@ -306,18 +123,18 @@ void remove_tex(unsigned int idmin, unsigned int idmax)
 	if (list==NULL) return;
 	if ((idmin==0x00000000) && (idmax==0xffffffff)) {
 		// delete everything, quite easy
-		debut = list->right;
-		fin = list->left;
-		while ((debut) && (fin)) {
+		debut = list->left;
+		fin = list->right;
+		while ((debut) || (fin)) {
 			if (debut) {
 				texlist[nbdel++]=debut->id;
-				temp = debut->right;
+				temp = debut->left;
 				free(debut);
 				debut = temp;
 			}
 			if (fin) {
 				texlist[nbdel++]=fin->id;
-				temp = fin->left;
+				temp = fin->right;
 				free(fin);
 				fin = temp;
 			}
@@ -327,32 +144,35 @@ void remove_tex(unsigned int idmin, unsigned int idmax)
 		list=NULL;
 		glDeleteTextures(nbdel, texlist);
 		nbTex = 0;
+//print_tex();
 		return;
 	}
 	// General case, range delete
 	// find starting point.
 	debut = list;
-	while ((debut->id > idmin) && (debut->right!=NULL)) {
-	   debut = debut->right;
+	while ((debut->id > idmin) && (debut->left!=NULL)) {
+	   debut = debut->left;
 	}
-	while ((debut->left!=NULL) && (debut->left->id < idmin)) {
-		debut = debut->left;
+	while ((debut->right!=NULL) && (debut->right->id <= idmin)) {
+		debut = debut->right;
 	}
-	fin = debut->right;
+	fin = debut->left;
 	// and now delete
 	while ((debut!=NULL) && (debut->id >= idmin) && (debut->id < idmax))
 	{
-		temp = debut->left;
+		temp = debut->right;
 		texlist[nbdel++]=debut->id;
 		free(debut);
 		debut=temp;
 	}
+	if (!nbdel)	return;
 	// rechain the list
-	if (fin) fin->left = debut;
-	if (debut) debut->right = fin;
+	if (fin) fin->right = debut;
+	if (debut) debut->left = fin;
 	if (debut) list = debut; else list = fin;		//change ankor
-	glDeleteTextures(nbdel, texlist);
 	nbTex -= nbdel;
+	glDeleteTextures(nbdel, texlist);
+printf("deleted (%i) %u->%u, list=", nbdel, idmin, idmax); print_tex();
 	return;
 #else
   unsigned int *t;
@@ -395,9 +215,7 @@ void remove_tex(unsigned int idmin, unsigned int idmax)
 void add_tex(unsigned int id)
 {
 #ifdef TEXBSP
-//printf("add_tex(%u)\n", id);
  if (list == NULL) {
-//printf("add root\n");
 	list = (texbsp*)malloc(sizeof(texbsp));
 	list->left = NULL; list->right = NULL;
 	list->id = id;
@@ -405,39 +223,48 @@ void add_tex(unsigned int id)
 	return;
  }
  texbsp *bsp = list;
+if (id>TMU_SIZE*2) {printf("/!\\ add (%u), anchor=%u, list=", id, bsp->id); print_tex();}
  if (bsp->id>=id) {	// go left
-// printf("Go left\n");
-	while ((bsp->left!=NULL) && (bsp->left->id > id))
+	while ((bsp->left!=NULL) && (bsp->id > id))
 	{
 		bsp=bsp->left;
 	}
-	if (bsp->id = id) return;
-	texbsp *aux = bsp->left;
+	if (bsp->id == id) return;
 	texbsp *ins = (texbsp*)malloc(sizeof(texbsp)); 
-	ins->left = aux;
-	ins->right = bsp;
 	ins->id = id;
-	bsp->left = ins;
-	if (aux) aux->right = ins;
+	if ((bsp->id > id) && (bsp->left==NULL)) {
+		bsp->left = ins;
+		ins->right = bsp;
+		ins->left = NULL;
+	} else {
+		texbsp *aux = bsp->right;
+		ins->left = bsp;
+		ins->right = aux;
+		bsp->right = ins;
+		if (aux) aux->left = ins;
+	}
 	nbTex++;
 	list=bsp;	// new ankor
 	return;
  } else {			// go right
-//printf("Go right\n");
-	while ((bsp->right!=NULL) && (bsp->right->id < id))
+	while ((bsp->right!=NULL) && (bsp->id < id))
 	{
-//printf("right\n");
 		bsp=bsp->right;
 	}
-//printf("stopped at %u\n", bsp->id);
-	if (bsp->id = id) return;
-	texbsp *aux = bsp->right;
+	if (bsp->id == id) return;
 	texbsp *ins = (texbsp*)malloc(sizeof(texbsp)); 
-	ins->right = aux;
-	ins->left = bsp;
 	ins->id = id;
-	bsp->right = ins;
-	if (aux) aux->left = ins;
+	if ((bsp->id < id) && (bsp->right==NULL)) {	// add at end of chain !
+		bsp->right = ins;
+		ins->left = bsp;
+		ins->right = NULL;
+	} else {	// insert in chain
+		texbsp *aux = bsp->left;
+		ins->right = bsp;
+		ins->left = aux;
+		bsp->left = ins;
+		if (aux) aux->right = ins;
+	}
 	nbTex++;
 	list=bsp;	// new ankor
 	return;
@@ -474,6 +301,10 @@ void init_textures()
   // 	nbTex = 0;
 
   if (!texture)	texture = (unsigned char*)malloc(2048*2048*4);
+  #ifdef TEXBSP
+  list = NULL;
+  nbTex = 0;
+  #endif
 }
 
 void free_textures()
