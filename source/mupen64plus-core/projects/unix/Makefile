@@ -96,7 +96,7 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     PIC ?= 1
 	OSD ?= 0
     NEW_DYNAREC := 1
-    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math
+    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment 
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
   endif
 endif
