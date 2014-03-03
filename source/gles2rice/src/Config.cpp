@@ -476,7 +476,7 @@ static void ReadConfiguration(void)
 
     options.mipmapping = ConfigGetParamInt(l_ConfigVideoRice, "Mipmapping");
 	//*SEB* Force to 0 has other setting crash on the Pandora
-	options.mipmapping = 0;
+	options.mipmapping = TEXTURE_NO_MIPMAP;
     options.fogMethod = ConfigGetParamInt(l_ConfigVideoRice, "FogMethod");
     options.forceTextureFilter = ConfigGetParamInt(l_ConfigVideoRice, "ForceTextureFilter");
     options.textureEnhancement = ConfigGetParamInt(l_ConfigVideoRice, "TextureEnhancement");

@@ -310,7 +310,7 @@ void COGLGraphicsContext::InitOGLExtension(void)
     m_bSupportAnisotropicFiltering = IsExtensionSupported("GL_EXT_texture_filter_anisotropic");
 #else
     m_bSupportMultiTexture = true;
-    m_bSupportFogCoord = false;
+    m_bSupportFogCoord = true;
     m_bSupportAnisotropicFiltering = true;
 #endif
     // Compute maxAnisotropicFiltering
