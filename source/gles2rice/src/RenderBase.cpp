@@ -635,6 +635,12 @@ void InitRenderBase()
         ProcessVertexData = ProcessVertexDataSSE;
     }
     else
+#elif defined(__ARM_NEON__)
+    if( !g_curRomInfo.bPrimaryDepthHack && options.enableHackForGames != HACK_FOR_NASCAR && options.enableHackForGames != HACK_FOR_ZELDA_MM && !options.bWinFrameMode)
+    {
+        ProcessVertexData = ProcessVertexDataNEON;
+    }
+    else
 #endif
     {
         ProcessVertexData = ProcessVertexDataNoSSE;
@@ -1520,6 +1526,160 @@ void ProcessVertexDataNoSSE(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
 
     VTX_DUMP(TRACE2("Setting Vertexes: %d - %d\n", dwV0, dwV0+dwNum-1));
     DEBUGGER_PAUSE_AND_DUMP(NEXT_VERTEX_CMD,{TRACE0("Paused at Vertex Cmd");});
+}
+
+extern "C" void pv_neon(XVECTOR4 *g_vtxTransformed, XVECTOR4 *g_vecProjected,
+    uint32 *g_dwVtxDifColor, VECTOR2 *g_fVtxTxtCoords,
+    float *g_fFogCoord, uint32 *g_clipFlag2,
+    uint32 dwNum, const FiddledVtx *vtx,
+    const Light *gRSPlights, const float *fRSPAmbientLightRGBA,
+    const XMATRIX *gRSPworldProject, const XMATRIX *gRSPmodelViewTop,
+    uint32 gRSPnumLights, float gRSPfFogMin);
+
+void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
+{
+    if (gRSP.bTextureGen && gRSP.bLightingEnable) {
+        ProcessVertexDataNoSSE(dwAddr, dwV0,dwNum);
+        return;
+    }
+
+    // assumtions:
+    // - g_clipFlag is not used at all
+    // - g_vtxNonTransformed is not used after ProcessVertexData*() returns
+    // - g_normal - same
+
+#define PV_NEON_ENABLE_LIGHT    (1 << 0)
+#define PV_NEON_ENABLE_SHADE    (1 << 1)
+#define PV_NEON_ENABLE_FOG      (1 << 2)
+#define PV_NEON_FOG_ALPHA       (1 << 3)
+
+    int neon_state = 0;
+    if ( gRSP.bLightingEnable )
+        neon_state |= PV_NEON_ENABLE_LIGHT;
+    if ( (gRDP.geometryMode & G_SHADE) || gRSP.ucode >= 5 )
+        neon_state |= PV_NEON_ENABLE_SHADE;
+    if ( gRSP.bFogEnabled )
+        neon_state |= PV_NEON_ENABLE_FOG;
+    if ( gRDP.geometryMode & G_FOG )
+        neon_state |= PV_NEON_FOG_ALPHA;
+
+    uint32 i;
+
+    UpdateCombinedMatrix();
+
+    // This function is called upon SPvertex
+    // - do vertex matrix transform
+    // - do vertex lighting
+    // - do texture cooridinate transform if needed
+    // - calculate normal vector
+
+    // Output:  - g_vecProjected[i]             -> transformed vertex x,y,z
+    //          - g_vecProjected[i].w           -> saved vertex 1/w
+    //          - g_vtxTransformed[i]
+    //          - g_dwVtxDifColor[i]            -> vertex color
+    //          - g_fVtxTxtCoords[i]            -> vertex texture cooridinates
+    //          - g_fFogCoord[i]
+    //          - g_clipFlag2[i]
+
+    const FiddledVtx * pVtxBase = (const FiddledVtx*)(g_pRDRAMu8 + dwAddr);
+    g_pVtxBase = (FiddledVtx *)pVtxBase;
+
+    // SP_Timing(RSP_GBI0_Vtx);
+    status.SPCycleCount += Timing_RSP_GBI0_Vtx * dwNum;
+
+    if (!(neon_state & (PV_NEON_ENABLE_LIGHT | PV_NEON_ENABLE_SHADE))) {
+        for (i = dwV0; i < dwV0 + dwNum; i++)
+            g_dwVtxDifColor[i] = gRDP.primitiveColor; // FLAT shade
+    }
+
+    for (i = dwV0; i < dwV0 + dwNum; i++)
+    {
+        const FiddledVtx & vert = pVtxBase[i - dwV0];
+        XVECTOR3 vtx_raw; // was g_vtxNonTransformed
+
+        vtx_raw.x = (float)vert.x;
+        vtx_raw.y = (float)vert.y;
+        vtx_raw.z = (float)vert.z;
+
+        Vec3Transform(&g_vtxTransformed[i], &vtx_raw, &gRSPworldProject); // Convert to w=1
+
+        g_vecProjected[i].w = 1.0f / g_vtxTransformed[i].w;
+        g_vecProjected[i].x = g_vtxTransformed[i].x * g_vecProjected[i].w;
+        g_vecProjected[i].y = g_vtxTransformed[i].y * g_vecProjected[i].w;
+        g_vecProjected[i].z = g_vtxTransformed[i].z * g_vecProjected[i].w;
+
+        if( neon_state & PV_NEON_ENABLE_FOG )
+        {
+            g_fFogCoord[i] = g_vecProjected[i].z;
+            if( g_vecProjected[i].w < 0 || g_vecProjected[i].z < 0 || g_fFogCoord[i] < gRSPfFogMin )
+                g_fFogCoord[i] = gRSPfFogMin;
+        }
+
+        // RSP_Vtx_Clipping(i);
+        g_clipFlag2[i] = 0;
+        if( g_vecProjected[i].w > 0 )
+        {
+            if( g_vecProjected[i].x > 1 )   g_clipFlag2[i] |= X_CLIP_MAX;
+            if( g_vecProjected[i].x < -1 )  g_clipFlag2[i] |= X_CLIP_MIN;
+            if( g_vecProjected[i].y > 1 )   g_clipFlag2[i] |= Y_CLIP_MAX;
+            if( g_vecProjected[i].y < -1 )  g_clipFlag2[i] |= Y_CLIP_MIN;
+        }
+
+        if( neon_state & PV_NEON_ENABLE_LIGHT )
+        {
+            XVECTOR3 normal; // was g_normal
+            float r, g, b;
+
+            normal.x = (float)vert.norma.nx;
+            normal.y = (float)vert.norma.ny;
+            normal.z = (float)vert.norma.nz;
+
+            Vec3TransformNormal(normal, gRSPmodelViewTop);
+
+            r = gRSP.fAmbientLightR;
+            g = gRSP.fAmbientLightG;
+            b = gRSP.fAmbientLightB;
+
+            for (unsigned int l=0; l < gRSPnumLights; l++)
+            {
+                float fCosT = normal.x * gRSPlights[l].x + normal.y * gRSPlights[l].y + normal.z * gRSPlights[l].z; 
+
+                if (fCosT > 0 )
+                {
+                    r += gRSPlights[l].fr * fCosT;
+                    g += gRSPlights[l].fg * fCosT;
+                    b += gRSPlights[l].fb * fCosT;
+                }
+            }
+            if (r > 255) r = 255;
+            if (g > 255) g = 255;
+            if (b > 255) b = 255;
+            g_dwVtxDifColor[i] = ((vert.rgba.a<<24)|(((uint32)r)<<16)|(((uint32)g)<<8)|((uint32)b));
+        }
+        else if( neon_state & PV_NEON_ENABLE_SHADE )
+        {
+            IColor &color = *(IColor*)&g_dwVtxDifColor[i];
+            color.b = vert.rgba.r;
+            color.g = vert.rgba.g;
+            color.r = vert.rgba.b;
+            color.a = vert.rgba.a;
+        }
+
+        // ReplaceAlphaWithFogFactor(i);
+        if( neon_state & PV_NEON_FOG_ALPHA )
+        {
+            // Use fog factor to replace vertex alpha
+            if( g_vecProjected[i].z > 1 )
+                *(((uint8*)&(g_dwVtxDifColor[i]))+3) = 0xFF;
+            if( g_vecProjected[i].z < 0 )
+                *(((uint8*)&(g_dwVtxDifColor[i]))+3) = 0;
+            else
+                *(((uint8*)&(g_dwVtxDifColor[i]))+3) = (uint8)(g_vecProjected[i].z*255);    
+        }
+
+        g_fVtxTxtCoords[i].x = (float)vert.tu;
+        g_fVtxTxtCoords[i].y = (float)vert.tv; 
+    }
 }
 
 bool PrepareTriangle(uint32 dwV0, uint32 dwV1, uint32 dwV2)
