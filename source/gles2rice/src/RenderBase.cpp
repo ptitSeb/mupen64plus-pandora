@@ -854,6 +854,17 @@ void ComputeLOD(bool openGL)
 bool bHalfTxtScale=false;
 extern uint32 lastSetTile;
 
+#ifndef __ARM_NEON__
+static void multiply_subtract2(float *d, const float *m1, const float *m2, const float *s)
+{
+    int i;
+    for (i = 0; i < 2; i++)
+        d[i] = m1[i] * m2[i] - s[i];
+}
+#else
+extern "C" void multiply_subtract2(float *d, const float *m1, const float *m2, const float *s);
+#endif
+
 void InitVertex(uint32 dwV, uint32 vtxIndex, bool bTexture, bool openGL)
 {
     VTX_DUMP(TRACE2("Init vertex (%d) to vtx buf[%d]:", dwV, vtxIndex));
@@ -959,22 +970,22 @@ void InitVertex(uint32 dwV, uint32 vtxIndex, bool bTexture, bool openGL)
         }
         else
         {
-            float tex0u = g_fVtxTxtCoords[dwV].x *gRSP.tex0scaleX - gRSP.tex0OffsetX ;
-            float tex0v = g_fVtxTxtCoords[dwV].y *gRSP.tex0scaleY - gRSP.tex0OffsetY ;
+            TexCord tex0;
+            multiply_subtract2(&tex0.u, &g_fVtxTxtCoords[dwV].x, &gRSP.tex0scaleX, &gRSP.tex0OffsetX);
 
             if( CRender::g_pRender->IsTexel1Enable() )
             {
-                float tex1u = g_fVtxTxtCoords[dwV].x *gRSP.tex1scaleX - gRSP.tex1OffsetX ;
-                float tex1v = g_fVtxTxtCoords[dwV].y *gRSP.tex1scaleY - gRSP.tex1OffsetY ;
+                TexCord tex1;
+                multiply_subtract2(&tex1.u, &g_fVtxTxtCoords[dwV].x, &gRSP.tex1scaleX, &gRSP.tex1OffsetX);
 
-                CRender::g_pRender->SetVertexTextureUVCoord(v, tex0u, tex0v, tex1u, tex1v);
-                VTX_DUMP(TRACE2("  (tex0): %f, %f",  tex0u,tex0v));
-                VTX_DUMP(TRACE2("  (tex1): %f, %f",  tex1u,tex1v));
+                CRender::g_pRender->SetVertexTextureUVCoord(v, tex0, tex1);
+                VTX_DUMP(TRACE2("  (tex0): %f, %f",  tex0.u,tex0.v));
+                VTX_DUMP(TRACE2("  (tex1): %f, %f",  tex1.u,tex1.v));
             }
             else
             {
-                CRender::g_pRender->SetVertexTextureUVCoord(v, tex0u, tex0v);
-                VTX_DUMP(TRACE2("  (tex0): %f, %f",  tex0u,tex0v));
+                CRender::g_pRender->SetVertexTextureUVCoord(v, tex0);
+                VTX_DUMP(TRACE2("  (tex0): %f, %f",  tex0.u,tex0.v));
             }
         }
 

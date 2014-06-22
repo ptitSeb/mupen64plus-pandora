@@ -298,4 +298,16 @@ pv_neon_next:
     .size       pv_neon, .-pv_neon
  
 
+@ (float *d, const float *m1, const float *m2, const float *s)
+FUNCTION(multiply_subtract2):
+    vld1.32     {d1}, [r1]
+    vld1.32     {d2}, [r2]
+    vmul.f32    d0, d1, d2
+    vld1.32     {d3}, [r3]
+    vsub.f32    d0, d3
+    vst1.32     {d0}, [r0]
+    bx          lr
+    .size       multiply_subtract2, .-multiply_subtract2
+
+
 @ vim:filetype=armasm:expandtab
