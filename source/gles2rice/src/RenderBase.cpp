@@ -1528,13 +1528,110 @@ void ProcessVertexDataNoSSE(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
     DEBUGGER_PAUSE_AND_DUMP(NEXT_VERTEX_CMD,{TRACE0("Paused at Vertex Cmd");});
 }
 
+/* NEON code */
+
+#include "RenderBase_neon.h"
+
 extern "C" void pv_neon(XVECTOR4 *g_vtxTransformed, XVECTOR4 *g_vecProjected,
     uint32 *g_dwVtxDifColor, VECTOR2 *g_fVtxTxtCoords,
     float *g_fFogCoord, uint32 *g_clipFlag2,
-    uint32 dwNum, const FiddledVtx *vtx,
+    uint32 dwNum, int neon_state,
+    const FiddledVtx *vtx,
     const Light *gRSPlights, const float *fRSPAmbientLightRGBA,
     const XMATRIX *gRSPworldProject, const XMATRIX *gRSPmodelViewTop,
-    uint32 gRSPnumLights, float gRSPfFogMin);
+    uint32 gRSPnumLights, float gRSPfFogMin,
+    uint32 primitiveColor, uint32 primitiveColor_);
+
+// debug
+//#define DO_CMP
+#ifdef DO_CMP
+// note: don't forget -fno-associative-math
+static XVECTOR4 n_transformed[2], n_projected[2];
+static uint32 n_color[2];
+static VECTOR2 n_vtxcoords[2];
+static float n_fogcoord[2];
+static uint32 n_clipflag2[2];
+
+static int do_cmp_f(void *a, void *b, int c)
+{
+    int *ia = (int *)a, *ib = (int *)b;
+    for (int i = 0; i < c; i++) {
+        int di = abs(ia[i] - ib[i]);
+        if (di > 7) {
+            printf("di: %d\n", di);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int do_cmp_c(uint32 a, uint32 b)
+{
+    if (abs(((a >> 0) & 0xff) - ((b >> 0) & 0xff)) > 1)
+        return 1;
+    if (abs(((a >> 8) & 0xff) - ((b >> 8) & 0xff)) > 1)
+        return 1;
+    if (abs(((a >> 16) & 0xff) - ((b >> 16) & 0xff)) > 1)
+        return 1;
+    if (abs(((a >> 24) & 0xff) - ((b >> 24) & 0xff)) > 1)
+        return 1;
+
+    return 0;
+}
+
+static void do_cmp(int i, int s, int neon_state)
+{
+    static int ccnt;
+    int bad = 0;
+
+    // if (memcmp(&n_transformed, &g_vtxTransformed[i], sizeof(XVECTOR4)))
+    if (do_cmp_f(&n_transformed[s], &g_vtxTransformed[i], 4)) {
+        printf("transformed:\n%13.8e %13.8e %13.8e %13.8e\n"
+               "%13.8e %13.8e %13.8e %13.8e\n",
+            n_transformed[s].x, n_transformed[s].y,
+            n_transformed[s].z, n_transformed[s].w,
+            g_vtxTransformed[i].x, g_vtxTransformed[i].y,
+            g_vtxTransformed[i].z, g_vtxTransformed[i].w);
+        bad = 1;
+    }
+    if (do_cmp_f(&n_projected[s], &g_vecProjected[i], 4)) {
+        printf("projected:\n%13.8e %13.8e %13.8e %13.8e |%08x\n"
+               "%13.8e %13.8e %13.8e %13.8e |%08x\n",
+            n_projected[s].x, n_projected[s].y,
+            n_projected[s].z, n_projected[s].w,
+            *(uint32 *)&n_projected[s].w,
+            g_vecProjected[i].x, g_vecProjected[i].y,
+            g_vecProjected[i].z, g_vecProjected[i].w,
+            *(uint32 *)&g_vecProjected[i].w);
+        bad = 1;
+    }
+    if (n_vtxcoords[s].x != g_fVtxTxtCoords[i].x
+        || n_vtxcoords[s].y != g_fVtxTxtCoords[i].y)
+    {
+        printf("vtxcoords:\n%13.8e %13.8e\n%13.8e %13.8e\n",
+            n_vtxcoords[s].x, n_vtxcoords[s].y,
+            g_fVtxTxtCoords[i].x, g_fVtxTxtCoords[i].y);
+        bad = 1;
+    }
+    if (n_clipflag2[s] != g_clipFlag2[i]) {
+        printf("clipflag2: %08x %08x\n", n_clipflag2[s], g_clipFlag2[i]);
+        bad = 1;
+    }
+    if (do_cmp_c(n_color[s], g_dwVtxDifColor[i])) {
+        printf("n_color: %08x %08x\n", n_color[s], g_dwVtxDifColor[i]);
+        bad = 1;
+    }
+    if (!(neon_state & PV_NEON_ENABLE_SHADE))
+        printf("!ENABLE_SHADE!\n");
+    if (bad) {
+        printf("%d s=%d, state %02x\n", ccnt, s, neon_state);
+        printf(".w %08x %08x\n",
+            *(uint32 *)&n_projected[s].w, *(uint32 *)&g_vecProjected[i].w);
+        exit(ccnt);
+    }
+    ccnt++;
+}
+#endif
 
 void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
 {
@@ -1545,13 +1642,9 @@ void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
 
     // assumtions:
     // - g_clipFlag is not used at all
+    // - g_fFogCoord is not used at all
     // - g_vtxNonTransformed is not used after ProcessVertexData*() returns
     // - g_normal - same
-
-#define PV_NEON_ENABLE_LIGHT    (1 << 0)
-#define PV_NEON_ENABLE_SHADE    (1 << 1)
-#define PV_NEON_ENABLE_FOG      (1 << 2)
-#define PV_NEON_FOG_ALPHA       (1 << 3)
 
     int neon_state = 0;
     if ( gRSP.bLightingEnable )
@@ -1564,6 +1657,9 @@ void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
         neon_state |= PV_NEON_FOG_ALPHA;
 
     uint32 i;
+#ifdef DO_CMP
+    uint32 s = 0;
+#endif
 
     UpdateCombinedMatrix();
 
@@ -1578,22 +1674,55 @@ void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
     //          - g_vtxTransformed[i]
     //          - g_dwVtxDifColor[i]            -> vertex color
     //          - g_fVtxTxtCoords[i]            -> vertex texture cooridinates
-    //          - g_fFogCoord[i]
+    //          - g_fFogCoord[i]                -> unused
     //          - g_clipFlag2[i]
 
     const FiddledVtx * pVtxBase = (const FiddledVtx*)(g_pRDRAMu8 + dwAddr);
     g_pVtxBase = (FiddledVtx *)pVtxBase;
 
+    gRSPmodelViewTop._14 = gRSPmodelViewTop._24 =
+    gRSPmodelViewTop._34 = 0;
+
     // SP_Timing(RSP_GBI0_Vtx);
     status.SPCycleCount += Timing_RSP_GBI0_Vtx * dwNum;
 
-    if (!(neon_state & (PV_NEON_ENABLE_LIGHT | PV_NEON_ENABLE_SHADE))) {
-        for (i = dwV0; i < dwV0 + dwNum; i++)
-            g_dwVtxDifColor[i] = gRDP.primitiveColor; // FLAT shade
-    }
+//#define DO_CC
+#ifdef DO_CC
+	asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r"(i));
+	i |= 5; // master enable, ccnt reset
+	i &= ~8; // ccnt divider 0
+	asm volatile("mcr p15, 0, %0, c9, c12, 0" :: "r"(i));
+	// enable cycle counter
+	asm volatile("mcr p15, 0, %0, c9, c12, 1" :: "r"(1<<31));
+	unsigned int cc_start;
+	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(cc_start));
+#endif
 
+#if 1
+    i = dwV0;
+    pv_neon(&g_vtxTransformed[i], &g_vecProjected[i],
+            &g_dwVtxDifColor[i], &g_fVtxTxtCoords[i],
+            &g_fFogCoord[i], &g_clipFlag2[i],
+            dwNum, neon_state, &pVtxBase[i - dwV0],
+            gRSPlights, gRSP.fAmbientColors,
+            &gRSPworldProject, &gRSPmodelViewTop,
+            gRSPnumLights, gRSPfFogMin,
+            gRDP.primitiveColor, gRDP.primitiveColor);
+#else
     for (i = dwV0; i < dwV0 + dwNum; i++)
     {
+#ifdef DO_CMP
+        if (!(s & 1))
+            pv_neon(n_transformed, n_projected,
+                    n_color, n_vtxcoords,
+                    n_fogcoord, n_clipflag2,
+                    1, neon_state, &pVtxBase[i - dwV0],
+                    gRSPlights, gRSP.fAmbientColors,
+                    &gRSPworldProject, &gRSPmodelViewTop,
+                    gRSPnumLights, gRSPfFogMin,
+                    gRDP.primitiveColor, gRDP.primitiveColor);
+#endif
+
         const FiddledVtx & vert = pVtxBase[i - dwV0];
         XVECTOR3 vtx_raw; // was g_vtxNonTransformed
 
@@ -1607,13 +1736,6 @@ void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
         g_vecProjected[i].x = g_vtxTransformed[i].x * g_vecProjected[i].w;
         g_vecProjected[i].y = g_vtxTransformed[i].y * g_vecProjected[i].w;
         g_vecProjected[i].z = g_vtxTransformed[i].z * g_vecProjected[i].w;
-
-        if( neon_state & PV_NEON_ENABLE_FOG )
-        {
-            g_fFogCoord[i] = g_vecProjected[i].z;
-            if( g_vecProjected[i].w < 0 || g_vecProjected[i].z < 0 || g_fFogCoord[i] < gRSPfFogMin )
-                g_fFogCoord[i] = gRSPfFogMin;
-        }
 
         // RSP_Vtx_Clipping(i);
         g_clipFlag2[i] = 0;
@@ -1664,6 +1786,8 @@ void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
             color.r = vert.rgba.b;
             color.a = vert.rgba.a;
         }
+        else
+            g_dwVtxDifColor[i] = gRDP.primitiveColor; // FLAT shade
 
         // ReplaceAlphaWithFogFactor(i);
         if( neon_state & PV_NEON_FOG_ALPHA )
@@ -1671,7 +1795,8 @@ void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
             // Use fog factor to replace vertex alpha
             if( g_vecProjected[i].z > 1 )
                 *(((uint8*)&(g_dwVtxDifColor[i]))+3) = 0xFF;
-            if( g_vecProjected[i].z < 0 )
+            // missing 'else' in original code??
+            else if( g_vecProjected[i].z < 0 )
                 *(((uint8*)&(g_dwVtxDifColor[i]))+3) = 0;
             else
                 *(((uint8*)&(g_dwVtxDifColor[i]))+3) = (uint8)(g_vecProjected[i].z*255);    
@@ -1679,7 +1804,22 @@ void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
 
         g_fVtxTxtCoords[i].x = (float)vert.tu;
         g_fVtxTxtCoords[i].y = (float)vert.tv; 
+#ifdef DO_CMP
+        do_cmp(i, s++ & 1, neon_state);
+#endif
     }
+#endif
+#ifdef DO_CC
+    static int total, total_c;
+	unsigned int cc;
+	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r"(cc));
+    total += cc - cc_start;
+    total_c += dwNum;
+    if (total_c > 20000) {
+        printf("%.u\n", total / total_c);
+        total = total_c = 0;
+    }
+#endif
 }
 
 bool PrepareTriangle(uint32 dwV0, uint32 dwV1, uint32 dwV2)

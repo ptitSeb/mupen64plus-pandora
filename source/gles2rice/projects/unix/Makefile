@@ -332,6 +332,7 @@ SOURCE = \
     $(SRCDIR)/OGLTexture.cpp            \
     $(SRCDIR)/Render.cpp                \
     $(SRCDIR)/RenderBase.cpp            \
+    $(SRCDIR)/RenderBase_neon.S         \
     $(SRCDIR)/RenderExt.cpp             \
     $(SRCDIR)/RenderTexture.cpp         \
     $(SRCDIR)/RSP_Parser.cpp            \
@@ -362,6 +363,7 @@ endif
 # generate a list of object files build, make a temporary directory for them
 OBJECTS := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(filter %.c, $(SOURCE)))
 OBJECTS += $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(filter %.cpp, $(SOURCE)))
+OBJECTS += $(patsubst $(SRCDIR)/%.S, $(OBJDIR)/%.o, $(filter %.S, $(SOURCE)))
 OBJDIRS = $(dir $(OBJECTS))
 $(shell $(MKDIR) $(OBJDIRS))
 
@@ -419,6 +421,9 @@ CXXFLAGS += $(CFLAGS)
 
 # standard build rules
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
+	$(COMPILE.c) -o $@ $<
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.S
 	$(COMPILE.c) -o $@ $<
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
