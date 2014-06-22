@@ -74,11 +74,11 @@ const char *fragmentHeader =
 "uniform vec4 PrimFrac;                                     \n"\
 "uniform float AlphaRef;                                    \n"\
 "uniform vec4 FogColor;                                     \n"\
-"uniform vec2  FogMinMax;                                   \n"\
 "                                                           \n"\
 "varying lowp vec4  vShadeColor;                            \n"\
 "varying mediump vec2  vTexCoord0;                          \n"\
 "varying lowp vec2  vTexCoord1;                             \n"\
+"varying lowp float vFog;                                   \n"\
 "                                                           \n"\
 "void main()                                                \n"\
 "{                                                          \n"\
