@@ -37,6 +37,8 @@ const char *vertexShader =
 "attribute lowp vec2    aAtlasTransform;                    \n"\
 "attribute mediump float aFogCoord;                         \n"\
 "                                                           \n"\
+"uniform vec2 FogMinMax;                                    \n"\
+"                                                           \n"\
 "varying lowp float vFactor;                                \n"\
 "varying lowp vec4  vShadeColor;                            \n"\
 "varying mediump vec2 vTexCoord0;                           \n"\
@@ -49,8 +51,9 @@ const char *vertexShader =
 "vShadeColor = aColor;                                      \n"\
 "vTexCoord0 = aTexCoord0;                                   \n"\
 "vTexCoord1 = aTexCoord1;                                   \n"\
-"vFog = clamp((FogMinMax[1] - aFogCoord)/(FogMinMax[1]-FogMinMax[0]),0.0,1.0);                       \n"\
+"vFog = (FogMinMax[1] - aFogCoord) / (FogMinMax[1] - FogMinMax[0]);  \n"\
 "                                                           \n"\
+"vFog = clamp(vFog, 0.0, 1.0);                              \n"\
 "}                                                          \n"\
 "                                                           \n";
 
