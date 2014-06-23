@@ -103,17 +103,20 @@ FUNCTION(pv_neon):
                                       vld1.16     d18[0], [r5]! @ [0].u
     vrecps.f32  d5, d2, d4            @ step
                                       vmovl.s16   q8, d16
-    /* write g_vtxTransformed */      vst1.32     {q0}, [r0, :128]!
+    /* g_vtxTransformed[0] */         vst1.32     {q0}, [r0, :128]!
                                       vmovl.s16   q9, d18
-    /* ... [1] */                     vst1.32     {q3}, [r0, :128]!
                                       vcvt.f32.s32 d16, d16
                                       vcvt.f32.s32 d18, d18
     vmul.f32    d4, d5, d4            @ better inv
                                       bic         r9, r5, #63
                                       pld         [r9, #64]
     vrecps.f32  d5, d2, d4            @ step
-    /* wrt u,v to g_fVtxTxtCoords */  vst1.32     {d16}, [r3]!
+                                      cmp         r11, #1
+    /* u,v g_fVtxTxtCoords[0] */      vst1.32     {d16}, [r3]!
+                                      beq         99f
+    /* g_vtxTransformed[1] */         vst1.32     {q3}, [r0, :128]!
     /* ... [1] */                     vst1.32     {d18}, [r3]!
+                                      99:
                                       vmov.f32    d20, #1.0
                                       vmov.f32    d21, #-1.0
     vmul.f32    d4, d5, d4            @ better inv [0][1] .w
@@ -144,12 +147,16 @@ FUNCTION(pv_neon):
                                       vcgt.f32    d6, d0, d20 @ .xy > 1.0?
                                       vcgt.f32    d7, d21, d0
                                       vcgt.f32    d4, d5, #0  @ .w > 0?
-    vst1.32     {q0,q1}, [r1]!        @ wrt g_vecProjected
+    vst1.32     {q0}, [r1]!           @ g_vecProjected[0]
                                       vcgt.f32    d8, d2, d20
                                       vcgt.f32    d9, d21, d2
     vld1.32     d0[0], [r4]!          @ mem: [0] .azyx
                                       vand        q3, q11
                                       vand        q4, q11
+    cmp         r11, #1
+    beq         99f
+    vst1.32     {q1}, [r1]!           @ g_vecProjected[1]
+99:
                                       vorr        d6, d6, d7
                                       vorr        d7, d8, d9
     vld1.32     d0[1], [r5]!          @ mem: [1] .azyx
