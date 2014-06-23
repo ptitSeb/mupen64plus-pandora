@@ -1553,6 +1553,8 @@ extern "C" void pv_neon(XVECTOR4 *g_vtxTransformed, XVECTOR4 *g_vecProjected,
     uint32 gRSPnumLights, float gRSPfFogMin,
     uint32 primitiveColor, uint32 primitiveColor_);
 
+extern "C" int tv_direction(const XVECTOR4 *v0, const XVECTOR4 *v1, const XVECTOR4 *v2);
+
 void ProcessVertexDataNEON(uint32 dwAddr, uint32 dwV0, uint32 dwNum)
 {
     if (gRSP.bTextureGen && gRSP.bLightingEnable) {
@@ -1761,6 +1763,7 @@ bool IsTriangleVisible(uint32 dwV0, uint32 dwV1, uint32 dwV2)
         // method doesnt' work well when the z value is outside of screenspace
         //if (v0.z < 1 && v1.z < 1 && v2.z < 1)
         {
+#ifndef __ARM_NEON__
             float V1 = v2.x - v0.x;
             float V2 = v2.y - v0.y;
             
@@ -1770,6 +1773,10 @@ bool IsTriangleVisible(uint32 dwV0, uint32 dwV1, uint32 dwV2)
             float fDirection = (V1 * W2) - (V2 * W1);
             fDirection = fDirection * v1.w * v2.w * v0.w;
             //float fDirection = v0.x*v1.y-v1.x*v0.y+v1.x*v2.y-v2.x*v1.y+v2.x*v0.y-v0.x*v2.y;
+#else
+            // really returns float, but we only need sign
+            int fDirection = tv_direction(&v0, &v1, &v2);
+#endif
 
             if (fDirection < 0 && gRSP.bCullBack)
             {

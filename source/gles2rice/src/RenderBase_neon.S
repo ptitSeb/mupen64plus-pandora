@@ -310,4 +310,23 @@ FUNCTION(multiply_subtract2):
     .size       multiply_subtract2, .-multiply_subtract2
 
 
+@ (const XVECTOR4 *v0, const XVECTOR4 *v1, const XVECTOR4 *v2)
+FUNCTION(tv_direction):
+    vld1.32     {q0}, [r0]
+    vld1.32     {q2}, [r2]
+    vld1.32     {q1}, [r1]
+    vsub.f32    d6, d4, d0     @ d6 = V2,V1
+    vsub.f32    d7, d4, d2     @ d7 = W2,W1
+    vmul.f32    d1, d5         @ d1 = v0.w * v2.w
+    vrev64.32   d7, d7
+    vmul.f32    d6, d7         @ d6 = V2*W1,V1*W2
+    vmul.f32    d1, d3         @ d1 *= v1.w
+    vshr.u64    d7, d6, #32
+    vsub.f32    d6, d7         @ d6[0] = V1*W2 - V2*W1
+    vshr.u64    d1, d1, #32
+    vmul.f32    d0, d1, d6
+    vmov.32     r0, d0[0]
+    bx          lr
+
+
 @ vim:filetype=armasm:expandtab
