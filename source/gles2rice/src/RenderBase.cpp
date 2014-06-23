@@ -854,6 +854,73 @@ void ComputeLOD(bool openGL)
 bool bHalfTxtScale=false;
 extern uint32 lastSetTile;
 
+#define noinline __attribute__((noinline))
+
+static noinline void InitVertex_scale_hack_check(uint32 dwV)
+{
+    // Check for txt scale hack
+    if( gRDP.tiles[lastSetTile].dwSize == TXT_SIZE_32b || gRDP.tiles[lastSetTile].dwSize == TXT_SIZE_4b )
+    {
+        int width = ((gRDP.tiles[lastSetTile].sh-gRDP.tiles[lastSetTile].sl+1)<<1);
+        int height = ((gRDP.tiles[lastSetTile].th-gRDP.tiles[lastSetTile].tl+1)<<1);
+        if( g_fVtxTxtCoords[dwV].x*gRSP.fTexScaleX == width || g_fVtxTxtCoords[dwV].y*gRSP.fTexScaleY == height )
+        {
+            bHalfTxtScale=true;
+        }
+    }
+}
+
+static noinline void InitVertex_notopengl_or_clipper_adjust(TLITVERTEX &v, uint32 dwV)
+{
+    v.x = g_vecProjected[dwV].x*gRSP.vtxXMul+gRSP.vtxXAdd;
+    v.y = g_vecProjected[dwV].y*gRSP.vtxYMul+gRSP.vtxYAdd;
+    v.z = (g_vecProjected[dwV].z + 1.0f) * 0.5f;    // DirectX minZ=0, maxZ=1
+    //v.z = g_vecProjected[dwV].z;  // DirectX minZ=0, maxZ=1
+    v.rhw = g_vecProjected[dwV].w;
+    VTX_DUMP(TRACE4("  Proj : x=%f, y=%f, z=%f, rhw=%f",  v.x,v.y,v.z,v.rhw));
+
+    if( gRSP.bProcessSpecularColor )
+    {
+        v.dcSpecular = CRender::g_pRender->PostProcessSpecularColor();
+        if( gRSP.bFogEnabled )
+        {
+            v.dcSpecular &= 0x00FFFFFF;
+            uint32  fogFct = 0xFF-(uint8)((g_fFogCoord[dwV]-gRSPfFogMin)*gRSPfFogDivider);
+            v.dcSpecular |= (fogFct<<24);
+        }
+    }
+    else if( gRSP.bFogEnabled )
+    {
+        uint32  fogFct = 0xFF-(uint8)((g_fFogCoord[dwV]-gRSPfFogMin)*gRSPfFogDivider);
+        v.dcSpecular = (fogFct<<24);
+    }
+}
+
+static noinline void InitVertex_texgen_correct(TLITVERTEX &v, uint32 dwV)
+{
+    // Correction for texGen result
+    float u0,u1,v0,v1;
+    RenderTexture &tex0 = g_textures[gRSP.curTile];
+    u0 = g_fVtxTxtCoords[dwV].x * 32 * 1024 * gRSP.fTexScaleX / tex0.m_fTexWidth;
+    v0 = g_fVtxTxtCoords[dwV].y * 32 * 1024 * gRSP.fTexScaleY / tex0.m_fTexHeight;
+    u0 *= (gRDP.tiles[gRSP.curTile].fShiftScaleS);
+    v0 *= (gRDP.tiles[gRSP.curTile].fShiftScaleT);
+
+    if( CRender::g_pRender->IsTexel1Enable() )
+    {
+        RenderTexture &tex1 = g_textures[(gRSP.curTile+1)&7];
+        u1 = g_fVtxTxtCoords[dwV].x * 32 * 1024 * gRSP.fTexScaleX / tex1.m_fTexWidth;
+        v1 = g_fVtxTxtCoords[dwV].y * 32 * 1024 * gRSP.fTexScaleY / tex1.m_fTexHeight;
+        u1 *= gRDP.tiles[(gRSP.curTile+1)&7].fShiftScaleS;
+        v1 *= gRDP.tiles[(gRSP.curTile+1)&7].fShiftScaleT;
+        CRender::g_pRender->SetVertexTextureUVCoord(v, u0, v0, u1, v1);
+    }
+    else
+    {
+        CRender::g_pRender->SetVertexTextureUVCoord(v, u0, v0);
+    }
+}
+
 #ifndef __ARM_NEON__
 static void multiply_subtract2(float *d, const float *m1, const float *m2, const float *s)
 {
@@ -868,7 +935,9 @@ extern "C" void multiply_subtract2(float *d, const float *m1, const float *m2, c
 void InitVertex(uint32 dwV, uint32 vtxIndex, bool bTexture, bool openGL)
 {
     VTX_DUMP(TRACE2("Init vertex (%d) to vtx buf[%d]:", dwV, vtxIndex));
-
+#ifdef __linux__
+    openGL = 1; // what else there is?
+#endif
     TLITVERTEX &v = g_vtxBuffer[vtxIndex];
     VTX_DUMP(TRACE4("  Trans: x=%f, y=%f, z=%f, w=%f",  g_vtxTransformed[dwV].x,g_vtxTransformed[dwV].y,g_vtxTransformed[dwV].z,g_vtxTransformed[dwV].w));
     if( openGL )
@@ -879,36 +948,15 @@ void InitVertex(uint32 dwV, uint32 vtxIndex, bool bTexture, bool openGL)
         g_vtxProjected5[vtxIndex][3] = g_vtxTransformed[dwV].w;
         g_vtxProjected5[vtxIndex][4] = g_vecProjected[dwV].z;
 
-        if( g_vtxTransformed[dwV].w < 0 )
+        if( *(int *)&g_vtxTransformed[dwV].w < 0 )
             g_vtxProjected5[vtxIndex][4] = 0;
 
         g_vtxIndex[vtxIndex] = vtxIndex;
     }
 
-    if( !openGL || options.bOGLVertexClipper == TRUE )
+    if( __builtin_expect(!openGL || options.bOGLVertexClipper == TRUE, 0) )
     {
-        v.x = g_vecProjected[dwV].x*gRSP.vtxXMul+gRSP.vtxXAdd;
-        v.y = g_vecProjected[dwV].y*gRSP.vtxYMul+gRSP.vtxYAdd;
-        v.z = (g_vecProjected[dwV].z + 1.0f) * 0.5f;    // DirectX minZ=0, maxZ=1
-        //v.z = g_vecProjected[dwV].z;  // DirectX minZ=0, maxZ=1
-        v.rhw = g_vecProjected[dwV].w;
-        VTX_DUMP(TRACE4("  Proj : x=%f, y=%f, z=%f, rhw=%f",  v.x,v.y,v.z,v.rhw));
-
-        if( gRSP.bProcessSpecularColor )
-        {
-            v.dcSpecular = CRender::g_pRender->PostProcessSpecularColor();
-            if( gRSP.bFogEnabled )
-            {
-                v.dcSpecular &= 0x00FFFFFF;
-                uint32  fogFct = 0xFF-(uint8)((g_fFogCoord[dwV]-gRSPfFogMin)*gRSPfFogDivider);
-                v.dcSpecular |= (fogFct<<24);
-            }
-        }
-        else if( gRSP.bFogEnabled )
-        {
-            uint32  fogFct = 0xFF-(uint8)((g_fFogCoord[dwV]-gRSPfFogMin)*gRSPfFogDivider);
-            v.dcSpecular = (fogFct<<24);
-        }
+        InitVertex_notopengl_or_clipper_adjust(v, dwV);
     }
     VTX_DUMP(TRACE2("  (U,V): %f, %f",  g_fVtxTxtCoords[dwV].x,g_fVtxTxtCoords[dwV].y));
 
@@ -944,29 +992,9 @@ void InitVertex(uint32 dwV, uint32 vtxIndex, bool bTexture, bool openGL)
     {
         // If the vert is already lit, then there is no normal (and hence we can't generate tex coord)
         // Only scale if not generated automatically
-        if (gRSP.bTextureGen && gRSP.bLightingEnable)
+        if ( __builtin_expect(gRSP.bTextureGen && gRSP.bLightingEnable, 0) )
         {
-            // Correction for texGen result
-            float u0,u1,v0,v1;
-            RenderTexture &tex0 = g_textures[gRSP.curTile];
-            u0 = g_fVtxTxtCoords[dwV].x * 32 * 1024 * gRSP.fTexScaleX / tex0.m_fTexWidth;
-            v0 = g_fVtxTxtCoords[dwV].y * 32 * 1024 * gRSP.fTexScaleY / tex0.m_fTexHeight;
-            u0 *= (gRDP.tiles[gRSP.curTile].fShiftScaleS);
-            v0 *= (gRDP.tiles[gRSP.curTile].fShiftScaleT);
-
-            if( CRender::g_pRender->IsTexel1Enable() )
-            {
-                RenderTexture &tex1 = g_textures[(gRSP.curTile+1)&7];
-                u1 = g_fVtxTxtCoords[dwV].x * 32 * 1024 * gRSP.fTexScaleX / tex1.m_fTexWidth;
-                v1 = g_fVtxTxtCoords[dwV].y * 32 * 1024 * gRSP.fTexScaleY / tex1.m_fTexHeight;
-                u1 *= gRDP.tiles[(gRSP.curTile+1)&7].fShiftScaleS;
-                v1 *= gRDP.tiles[(gRSP.curTile+1)&7].fShiftScaleT;
-                CRender::g_pRender->SetVertexTextureUVCoord(v, u0, v0, u1, v1);
-            }
-            else
-            {
-                CRender::g_pRender->SetVertexTextureUVCoord(v, u0, v0);
-            }
+            InitVertex_texgen_correct(v, dwV);
         }
         else
         {
@@ -989,29 +1017,8 @@ void InitVertex(uint32 dwV, uint32 vtxIndex, bool bTexture, bool openGL)
             }
         }
 
-        // Check for txt scale hack
-        if( !bHalfTxtScale && g_curRomInfo.bTextureScaleHack &&
-            (gRDP.tiles[lastSetTile].dwSize == TXT_SIZE_32b || gRDP.tiles[lastSetTile].dwSize == TXT_SIZE_4b ) )
-        {
-            int width = ((gRDP.tiles[lastSetTile].sh-gRDP.tiles[lastSetTile].sl+1)<<1);
-            int height = ((gRDP.tiles[lastSetTile].th-gRDP.tiles[lastSetTile].tl+1)<<1);
-            if( g_fVtxTxtCoords[dwV].x*gRSP.fTexScaleX == width || g_fVtxTxtCoords[dwV].y*gRSP.fTexScaleY == height )
-            {
-                bHalfTxtScale=true;
-            }
-        }
-    }
-
-    if( g_curRomInfo.bEnableTxtLOD && vtxIndex == 1 && gRDP.otherMode.text_lod )
-    {
-        if( CRender::g_pRender->IsTexel1Enable() && CRender::g_pRender->m_pColorCombiner->m_pDecodedMux->isUsed(MUX_LODFRAC) )
-        {
-            ComputeLOD(openGL);
-        }
-        else
-        {
-            gRDP.LODFrac = 0;
-        }
+        if( __builtin_expect(g_curRomInfo.bTextureScaleHack && !bHalfTxtScale, 0) )
+            InitVertex_scale_hack_check(dwV);
     }
 
     VTX_DUMP(TRACE2("  DIF(%08X), SPE(%08X)",   v.dcDiffuse, v.dcSpecular));
@@ -1723,6 +1730,18 @@ bool PrepareTriangle(uint32 dwV0, uint32 dwV1, uint32 dwV2)
         InitVertex(dwV0, gRSP.numVertices, textureFlag, openGL);
         InitVertex(dwV1, gRSP.numVertices+1, textureFlag, openGL);
         InitVertex(dwV2, gRSP.numVertices+2, textureFlag, openGL);
+
+        if( __builtin_expect(gRSP.numVertices == 0 && g_curRomInfo.bEnableTxtLOD && gRDP.otherMode.text_lod, 0) )
+        {
+            if( CRender::g_pRender->IsTexel1Enable() && CRender::g_pRender->m_pColorCombiner->m_pDecodedMux->isUsed(MUX_LODFRAC) )
+            {
+                ComputeLOD(openGL);
+            }
+            else
+            {
+                gRDP.LODFrac = 0;
+            }
+        }
 
         gRSP.numVertices += 3;
         status.dwNumTrisRendered++;
