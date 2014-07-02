@@ -363,9 +363,15 @@ SOURCE += \
 	$(SRCDIR)/osal_files_unix.c
 endif
 
+ifeq ($(CPU),ARM)
+SOURCE += \
+    $(SRCDIR)/RenderBase_neon.S
+endif
+
 # generate a list of object files build, make a temporary directory for them
 OBJECTS := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(filter %.c, $(SOURCE)))
 OBJECTS += $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(filter %.cpp, $(SOURCE)))
+OBJECTS += $(patsubst $(SRCDIR)/%.S, $(OBJDIR)/%.o, $(filter %.S, $(SOURCE)))
 OBJDIRS = $(dir $(OBJECTS))
 $(shell $(MKDIR) $(OBJDIRS))
 
@@ -423,6 +429,9 @@ CXXFLAGS += $(CFLAGS)
 
 # standard build rules
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
+	$(COMPILE.c) -o $@ $<
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.S
 	$(COMPILE.c) -o $@ $<
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
