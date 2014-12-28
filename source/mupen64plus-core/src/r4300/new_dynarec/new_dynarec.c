@@ -53,7 +53,7 @@
 
 #define MAXBLOCK 4096
 #define MAX_OUTPUT_BLOCK_SIZE 262144
-#define CLOCK_DIVIDER count_per_op
+//#define CLOCK_DIVIDER count_per_op
 
 void *base_addr;
 
@@ -143,6 +143,7 @@ u_int using_tlb;
 static u_int stop_after_jal;
 extern u_char restore_candidate[512];
 extern int cycle_count;
+float CLOCK_DIVIDER;
 
   /* registers that may be allocated */
   /* 1-31 gpr */
@@ -1105,8 +1106,8 @@ static void ll_remove_matching_addrs(struct ll_entry **head,int addr,int shift)
 {
   struct ll_entry *next;
   while(*head) {
-    if(((u_int)((*head)->addr)>>shift)==(addr>>shift) || 
-       ((u_int)((*head)->addr-MAX_OUTPUT_BLOCK_SIZE)>>shift)==(addr>>shift))
+    if((((u_int)((*head)->addr)-(u_int)base_addr)>>shift)==((addr-(u_int)base_addr)>>shift) ||
+       (((u_int)((*head)->addr)-(u_int)base_addr-MAX_OUTPUT_BLOCK_SIZE)>>shift)==((addr-(u_int)base_addr)>>shift))
     {
       inv_debug("EXP: Remove pointer to %x (%x)\n",(int)(*head)->addr,(*head)->vaddr);
       remove_hash((*head)->vaddr);
@@ -1140,10 +1141,10 @@ static void ll_clear(struct ll_entry **head)
 static void ll_kill_pointers(struct ll_entry *head,int addr,int shift)
 {
   while(head) {
-    int ptr=get_pointer(head->addr);
+    u_int  ptr=get_pointer(head->addr);
     inv_debug("EXP: Lookup pointer to %x at %x (%x)\n",(int)ptr,(int)head->addr,head->vaddr);
-    if(((ptr>>shift)==(addr>>shift)) ||
-       (((ptr-MAX_OUTPUT_BLOCK_SIZE)>>shift)==(addr>>shift)))
+    if((((ptr-(u_int)base_addr)>>shift)==((addr-(u_int)base_addr)>>shift)) ||
+       (((ptr-(u_int)base_addr-MAX_OUTPUT_BLOCK_SIZE)>>shift)==((addr-(u_int)base_addr)>>shift)))
     {
       inv_debug("EXP: Kill pointer at %x (%x)\n",(int)head->addr,head->vaddr);
       u_int host_addr=(int)kill_pointer(head->addr);
@@ -2183,11 +2184,11 @@ static void alu_assemble(int i,struct regstat *i_regs)
           else emit_adds(s1l,s2l,tl);
           if(th>=0) {
             #ifdef INVERTED_CARRY
-            if(opcode2[i]&2) {if(s1h!=th) emit_mov(s1h,th);emit_sbb(th,s2h);}
+            if(opcode2[i]&2) emit_sbb(s1h,s2h,th);
             #else
             if(opcode2[i]&2) emit_sbc(s1h,s2h,th);
             #endif
-            else emit_add(s1h,s2h,th);
+            else emit_adc(s1h,s2h,th);
           }
         }
         else if(rs1[i]) {
@@ -5414,10 +5415,12 @@ static void cjump_assemble(int i,struct regstat *i_regs)
         emit_cmpimm(s1l,1);
         if(invert){
           nottaken=(int)out;
-          emit_jge(1);
+          if(only32) emit_jge(1);
+          else emit_jae(1);
         }else{
           add_to_linker((int)out,ba[i],internal);
-          emit_jl(0);
+          if(only32) emit_jl(0);
+          else emit_jb(0); 
         }
       }
       if(opcode[i]==7) // BGTZ
@@ -5425,10 +5428,12 @@ static void cjump_assemble(int i,struct regstat *i_regs)
         emit_cmpimm(s1l,1);
         if(invert){
           nottaken=(int)out;
-          emit_jl(1);
+          if(only32) emit_jl(1);
+          else emit_jb(1);
         }else{
           add_to_linker((int)out,ba[i],internal);
-          emit_jge(0);
+          if(only32) emit_jge(0);
+          else emit_jae(0);
         }
       }
       if(invert) {
@@ -5533,13 +5538,15 @@ static void cjump_assemble(int i,struct regstat *i_regs)
       {
         emit_cmpimm(s1l,1);
         nottaken=(int)out;
-        emit_jge(2);
+        if(only32) emit_jge(2);
+        else emit_jae(2);
       }
       if((opcode[i]&0x2f)==7) // BGTZ
       {
         emit_cmpimm(s1l,1);
         nottaken=(int)out;
-        emit_jl(2);
+        if(only32) emit_jl(2);
+        else emit_jb(2);
       }
     } // if(!unconditional)
     int adj;
@@ -7619,6 +7626,7 @@ void new_dynarec_init()
             MAP_PRIVATE | MAP_ANONYMOUS,
             -1, 0)) <= 0) {DebugMessage(M64MSG_ERROR, "mmap() failed");}
 #endif
+  log_message("%dMB cache initialised at: %.8X ", ((1<<TARGET_SIZE_2)/1048576), (int)base_addr);
   out=(u_char *)base_addr;
 
   rdword=&readmem_dword;
@@ -7634,6 +7642,14 @@ void new_dynarec_init()
   memset(restore_candidate,0,sizeof(restore_candidate));
   copy=shadow;
   expirep=16384; // Expiry pointer, +2 blocks
+  CLOCK_DIVIDER = count_per_op;
+  // Donkey kong 64 hack
+  if (strncmp((char *) ROM_HEADER.Name, "DONKEY KONG 64",14) == 0)
+  {
+   CLOCK_DIVIDER/=2;
+  }
+  log_message("CLOCK DIVIDER:%f",CLOCK_DIVIDER);
+
   pending_exception=0;
   literalcount=0;
 #ifdef HOST_IMM8
@@ -10913,7 +10929,10 @@ int new_recompile_block(int addr)
   // If we're within 256K of the end of the buffer,
   // start over from the beginning. (Is 256K enough?)
   if(out > (u_char *)(base_addr+(1<<TARGET_SIZE_2)-MAX_OUTPUT_BLOCK_SIZE-JUMP_TABLE_SIZE))
+  {
+    log_message("%dMB cache is full, starting over from the beginning: %.8X ", ((1<<TARGET_SIZE_2)/1048576), (int)base_addr);
     out=(u_char *)base_addr;
+  }
   
   // Trap writes to any of the pages we compiled
   for(i=start>>12;i<=(start+slen*4)>>12;i++) {
@@ -10954,13 +10973,13 @@ int new_recompile_block(int addr)
         // Clear hash table
         for(i=0;i<32;i++) {
           u_int *ht_bin=hash_table[((expirep&2047)<<5)+i];
-          if((ht_bin[3]>>shift)==(base>>shift) ||
+          if(((ht_bin[3]-(u_int)base_addr)>>shift)==((base-(u_int)base_addr)>>shift) ||
              ((ht_bin[3]-MAX_OUTPUT_BLOCK_SIZE)>>shift)==(base>>shift)) {
             inv_debug("EXP: Remove hash %x -> %x\n",ht_bin[2],ht_bin[3]);
             ht_bin[2]=ht_bin[3]=-1;
           }
-          if((ht_bin[1]>>shift)==(base>>shift) ||
-             ((ht_bin[1]-MAX_OUTPUT_BLOCK_SIZE)>>shift)==(base>>shift)) {
+          if(((ht_bin[1]-(u_int)base_addr)>>shift)==((base-(u_int)base_addr)>>shift) ||
+             ((ht_bin[1]-(u_int)base_addr-MAX_OUTPUT_BLOCK_SIZE)>>shift)==((base-(u_int)base_addr)>>shift)) {
             inv_debug("EXP: Remove hash %x -> %x\n",ht_bin[0],ht_bin[1]);
             ht_bin[0]=ht_bin[2];
             ht_bin[1]=ht_bin[3];

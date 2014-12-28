@@ -238,6 +238,13 @@ dyna_linker:
 	sub	r1, r1, #2
 	add	r1, r1, r2, lsr #8
 	str	r1, [r5]
+	/*__clear_cache*/
+	mov	r0, r5
+	add	r1, r5, #1
+	mov r2, #0
+	mov r7, #0x2
+	add r7, r7, #0xf0000
+	svc 0x00000000
 	mov	pc, r4
 .A3:
 	/* hash_table lookup */
@@ -361,6 +368,13 @@ dyna_linker_ds:
 	sub	r1, r1, #2
 	add	r1, r1, r2, lsr #8
 	str	r1, [r5]
+	/*__clear_cache*/
+	mov	r0, r5
+	add	r1, r5, #1
+	mov r2, #0
+	mov r7, #0x2
+	add r7, r7, #0xf0000
+	svc 0x00000000
 	mov	pc, r4
 .B3:
 	/* hash_table lookup */
