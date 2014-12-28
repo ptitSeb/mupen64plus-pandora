@@ -233,7 +233,7 @@ printf("[gles2N64]: Searching %s Database for \"%s\" ROM\n", filename, config.ro
         while (!feof(f))
         {
             fgets(line, 4096, f);
-            if (line[0] == '\n') continue;
+            if ((line[0] == '\r') || (line[0] == '\n')) continue;
 
             if (strncmp(line,"rom name=", 9) == 0)
             {
@@ -291,7 +291,7 @@ printf("[gles2n64]: Loading Config from %s \n", filename);
             char *val;
             fgets( line, 4096, f );
 
-            if (line[0] == '#' || line[0] == '\n')
+            if (line[0] == '#' || line[0] == '\r' || line[0] == '\n')
                 continue;
 
             val = strchr( line, '=' );
