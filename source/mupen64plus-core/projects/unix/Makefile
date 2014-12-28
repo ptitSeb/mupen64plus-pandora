@@ -310,7 +310,7 @@ ifeq ($(PROFILE), 1)
   INSTALL_STRIP_FLAG ?= 
 else
   ifeq ($(DEBUG), 1)
-    CFLAGS += -g
+    CFLAGS += -g -DDEBUG_MSG_TO_LOGFILE
     INSTALL_STRIP_FLAG ?= 
   else
     ifneq ($(OS),OSX)
