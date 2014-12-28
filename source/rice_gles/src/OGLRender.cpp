@@ -969,12 +969,15 @@ void OGLRender::DrawSimple2DTexture(float x0, float y0, float x1, float y1, floa
 
     StartDrawSimple2DTexture(x0, y0, x1, y1, u0, v0, u1, v1, dif, spe, z, rhw);
 
-    if(options.bWideScreenHack)
+    if(options.bWideScreenHack && options.enableHackForGames == HACK_FOR_ZELDA)
     {
         glClearColor(0.f, 0.f, 0.f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT);
     }
  
+    if(options.enableHackForGames == HACK_FOR_ZELDA_MM)
+        return;
+
     GLboolean cullface = glIsEnabled(GL_CULL_FACE);
     glDisable(GL_CULL_FACE);
     OPENGL_CHECK_ERRORS;
