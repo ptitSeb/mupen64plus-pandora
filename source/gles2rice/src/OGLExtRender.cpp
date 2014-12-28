@@ -234,11 +234,13 @@ void COGLExtRender::EnableTexUnit(int unitno, BOOL flag)
         m_texUnitEnabled[unitno] = flag;
         pglActiveTexture(GL_TEXTURE0_ARB+unitno);
         OPENGL_CHECK_ERRORS;
+#if SDL_VIDEO_OPENGL
         if( flag == TRUE )
             glEnable(GL_TEXTURE_2D);
         else
             glDisable(GL_TEXTURE_2D);
         OPENGL_CHECK_ERRORS;
+#endif
     }
 }
 

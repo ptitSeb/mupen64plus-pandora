@@ -68,6 +68,12 @@ public:
     {
         bAlphaTestState = bEnable;
     }
+    
+    void SetAlphaValue(float alpha)
+    {
+        m_AlphaRef = alpha;
+    }
+
 
 protected:
     friend class OGLDeviceBuilder;

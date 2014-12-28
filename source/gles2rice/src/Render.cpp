@@ -162,6 +162,9 @@ void CRender::SetProjection(const Matrix & mat, bool bPush, bool bReplace)
         {
             // Load projection matrix
             gRSP.projectionMtxs[gRSP.projectionMtxTop] = mat;
+  
+            if(options.bWideScreenHack)
+                gRSP.projectionMtxs[gRSP.projectionMtxTop]._11 *= WIDESCREEN_SCALE;
         }
         else
         {
@@ -175,10 +178,32 @@ void CRender::SetProjection(const Matrix & mat, bool bPush, bool bReplace)
         {
             // Load projection matrix
             gRSP.projectionMtxs[gRSP.projectionMtxTop] = mat;
+  
+            if(options.bWideScreenHack)
+                gRSP.projectionMtxs[gRSP.projectionMtxTop]._11 *= WIDESCREEN_SCALE;
+  
+            //Hack for Zelda missing Heart (translate on z)
+            if( options.enableHackForGames == HACK_FOR_ZELDA || options.enableHackForGames == HACK_FOR_ZELDA_MM) 
+                gRSP.projectionMtxs[gRSP.projectionMtxTop]._43 += 0.4f;
+  
+            //Hack for Mario kart in widescreen mode
+            if((options.bWideScreenHack) && (options.enableHackForGames == HACK_FOR_MARIO_KART))
+            {
+                //Hack for Background and HUD (translate on x)
+                gRSP.projectionMtxs[gRSP.projectionMtxTop]._41 *= WIDESCREEN_SCALE;
+  
+                //Hack for Background (reduce w component)
+                if(gRSP.projectionMtxs[gRSP.projectionMtxTop]._43 == -1.f)
+                    gRSP.projectionMtxs[gRSP.projectionMtxTop]._44 *= WIDESCREEN_SCALE;
+            }
         }
         else
         {
             gRSP.projectionMtxs[gRSP.projectionMtxTop] = mat * gRSP.projectionMtxs[gRSP.projectionMtxTop];
+
+            //Hack for Mario 64 Background in widescreen mode (reduce w component)
+            if((options.bWideScreenHack) && (options.enableHackForGames == HACK_FOR_SUPER_MARIO_64) && (gRSP.projectionMtxs[gRSP.projectionMtxTop]._43 == -1.f))
+                gRSP.projectionMtxs[gRSP.projectionMtxTop]._44 *= WIDESCREEN_SCALE;
         }
     }
     
@@ -214,20 +239,6 @@ void CRender::SetWorldView(const Matrix & mat, bool bPush, bool bReplace)
         {
             // Load projection matrix
             gRSP.modelviewMtxs[gRSP.modelViewMtxTop] = mat;
-
-            //GSI: Hack needed to show heart in OOT & MM
-            //it renders at Z cordinate = 0.0f that gets clipped away.
-            //so we translate them a bit along Z to make them stick
-            if( options.enableHackForGames == HACK_FOR_ZELDA || options.enableHackForGames == HACK_FOR_ZELDA_MM) 
-            {
-                if(gRSP.modelviewMtxs[gRSP.modelViewMtxTop]._43 == 0.0f
-                    && gRSP.modelviewMtxs[gRSP.modelViewMtxTop]._42 != 0.0f
-                    && gRSP.modelviewMtxs[gRSP.modelViewMtxTop]._42 <= 94.5f
-                    && gRSP.modelviewMtxs[gRSP.modelViewMtxTop]._42 >= -94.5f)
-                {
-                    gRSP.modelviewMtxs[gRSP.modelViewMtxTop]._43 -= 10.1f;
-                }
-            }
         }
         else
         {
@@ -387,10 +398,38 @@ bool CRender::FillRect(int nX0, int nY0, int nX1, int nY1, uint32 dwColor)
     {
         //BOOL m_savedZBufferFlag = gRSP.bZBufferEnabled;   // Save ZBuffer state
         ZBufferEnable( FALSE );
-
-        m_fillRectVtx[0].x = ViewPortTranslatei_x(nX0);
+ 
+        float x0, x1;
+ 
+        if(options.bWideScreenHack)
+        {
+            if((nX0 == 0) && (nX1 > 300))
+            {
+                x0 = ViewPortTranslatei_x(nX0);
+                x1 = ViewPortTranslatei_x(nX1);
+            }
+            else
+        {
+            x0 = (ViewPortTranslatei_x(nX0)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+            x1 = (ViewPortTranslatei_x(nX1)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+        }
+        }
+        else
+        {
+            x0 = ViewPortTranslatei_x(nX0);
+            x1 = ViewPortTranslatei_x(nX1);
+        }
+ 
+        if((options.bWideScreenHack) && (options.enableHackForGames == HACK_FOR_MARIO_KART) && ((dwColor&0x00FFFFFF) != 0))
+        {
+            x0 = (ViewPortTranslatei_x(nX0)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+            x1 = (ViewPortTranslatei_x(nX1)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+        }
+ 
+ 
+        m_fillRectVtx[0].x = x0;
         m_fillRectVtx[0].y = ViewPortTranslatei_y(nY0);
-        m_fillRectVtx[1].x = ViewPortTranslatei_x(nX1);
+        m_fillRectVtx[1].x = x1;
         m_fillRectVtx[1].y = ViewPortTranslatei_y(nY1);
 
         SetCombinerAndBlender();
@@ -554,6 +593,20 @@ bool CRender::RemapTextureCoordinate
 
 bool CRender::TexRect(int nX0, int nY0, int nX1, int nY1, float fS0, float fT0, float fScaleS, float fScaleT, bool colorFlag, uint32 diffuseColor)
 {
+    //Hack for zelda menu background
+    if((options.enableHackForGames == HACK_FOR_ZELDA) || (options.enableHackForGames == HACK_FOR_ZELDA_MM))
+    {
+        if((nX0 == 0) && (nX1 == 320) && (((nY1-nY0) == 6) || ((nY1-nY0) == 4)))
+        {
+            unsigned int previous_cycle_type = gRDP.otherMode.cycle_type;
+ 
+            gRDP.otherMode.cycle_type = CYCLE_TYPE_FILL;
+            FillRect(nX0, nY0, nX1, nY1, 0);
+            gRDP.otherMode.cycle_type = previous_cycle_type;
+            return true;
+        }
+    }
+ 
     if( options.enableHackForGames == HACK_FOR_DUKE_NUKEM )
     {
         colorFlag = true;
@@ -718,23 +771,36 @@ bool CRender::TexRect(int nX0, int nY0, int nX1, int nY1, float fS0, float fT0, 
     else
         //difColor = PostProcessDiffuseColor(0);
         difColor = PostProcessDiffuseColor(gRDP.primitiveColor);
-
-    g_texRectTVtx[0].x = ViewPortTranslatei_x(nX0);
+ 
+    float x0, x1;
+ 
+    if(options.bWideScreenHack)
+    {
+        x0 = (ViewPortTranslatei_x(nX0)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+        x1 = (ViewPortTranslatei_x(nX1)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+    }
+    else
+    {
+        x0 = ViewPortTranslatei_x(nX0);
+        x1 = ViewPortTranslatei_x(nX1);
+    }
+ 
+    g_texRectTVtx[0].x = x0;
     g_texRectTVtx[0].y = ViewPortTranslatei_y(nY0);
     g_texRectTVtx[0].dcDiffuse = difColor;
     g_texRectTVtx[0].dcSpecular = speColor;
 
-    g_texRectTVtx[1].x = ViewPortTranslatei_x(nX1);
+    g_texRectTVtx[1].x = x1;
     g_texRectTVtx[1].y = ViewPortTranslatei_y(nY0);
     g_texRectTVtx[1].dcDiffuse = difColor;
     g_texRectTVtx[1].dcSpecular = speColor;
 
-    g_texRectTVtx[2].x = ViewPortTranslatei_x(nX1);
+    g_texRectTVtx[2].x = x1;
     g_texRectTVtx[2].y = ViewPortTranslatei_y(nY1);
     g_texRectTVtx[2].dcDiffuse = difColor;
     g_texRectTVtx[2].dcSpecular = speColor;
 
-    g_texRectTVtx[3].x = ViewPortTranslatei_x(nX0);
+    g_texRectTVtx[3].x = x0;
     g_texRectTVtx[3].y = ViewPortTranslatei_y(nY1);
     g_texRectTVtx[3].dcDiffuse = difColor;
     g_texRectTVtx[3].dcSpecular = speColor;
@@ -892,23 +958,36 @@ bool CRender::TexRectFlip(int nX0, int nY0, int nX1, int nY1, float fS0, float f
     COLOR speColor = PostProcessSpecularColor();
     COLOR difColor = PostProcessDiffuseColor(gRDP.primitiveColor);
 
-    // Same as TexRect, but with texcoords 0,2 swapped
-    g_texRectTVtx[0].x = ViewPortTranslatei_x(nX0);
+    float x0, x1;
+ 
+    if(options.bWideScreenHack)
+    {
+        x0 = (ViewPortTranslatei_x(nX0)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+        x1 = (ViewPortTranslatei_x(nX1)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+    }
+    else
+    {
+        x0 = ViewPortTranslatei_x(nX0);
+        x1 = ViewPortTranslatei_x(nX1);
+    }
+
+// Same as TexRect, but with texcoords 0,2 swapped
+    g_texRectTVtx[0].x = x0;
     g_texRectTVtx[0].y = ViewPortTranslatei_y(nY0);
     g_texRectTVtx[0].dcDiffuse = difColor;
     g_texRectTVtx[0].dcSpecular = speColor;
 
-    g_texRectTVtx[1].x = ViewPortTranslatei_x(nX1);
+    g_texRectTVtx[1].x = x1;
     g_texRectTVtx[1].y = ViewPortTranslatei_y(nY0);
     g_texRectTVtx[1].dcDiffuse = difColor;
     g_texRectTVtx[1].dcSpecular = speColor;
 
-    g_texRectTVtx[2].x = ViewPortTranslatei_x(nX1);
+    g_texRectTVtx[2].x = x1;
     g_texRectTVtx[2].y = ViewPortTranslatei_y(nY1);
     g_texRectTVtx[2].dcDiffuse = difColor;
     g_texRectTVtx[2].dcSpecular = speColor;
 
-    g_texRectTVtx[3].x = ViewPortTranslatei_x(nX0);
+    g_texRectTVtx[3].x = x0;
     g_texRectTVtx[3].y = ViewPortTranslatei_y(nY1);
     g_texRectTVtx[3].dcDiffuse = difColor;
     g_texRectTVtx[3].dcSpecular = speColor;
@@ -945,7 +1024,20 @@ bool CRender::TexRectFlip(int nX0, int nY0, int nX1, int nY1, float fS0, float f
 
 void CRender::StartDrawSimple2DTexture(float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, COLOR dif, COLOR spe, float z, float rhw)
 {
-    g_texRectTVtx[0].x = ViewPortTranslatei_x(x0);  // << Error here, shouldn't divid by 4
+    float nX0, nX1;
+ 
+    if(options.bWideScreenHack)
+    {
+        nX0 = (ViewPortTranslatei_x(x0)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+        nX1 = (ViewPortTranslatei_x(x1)*WIDESCREEN_SCALE)+(WIDESCREEN_OFFSET*windowSetting.uDisplayWidth);
+    }
+    else
+    {
+        nX0 = ViewPortTranslatei_x(x0);
+        nX1 = ViewPortTranslatei_x(x1);
+    }
+
+    g_texRectTVtx[0].x = nX0;  // << Error here, shouldn't divid by 4
     g_texRectTVtx[0].y = ViewPortTranslatei_y(y0);
     g_texRectTVtx[0].dcDiffuse = dif;
     g_texRectTVtx[0].dcSpecular = spe;
@@ -953,21 +1045,21 @@ void CRender::StartDrawSimple2DTexture(float x0, float y0, float x1, float y1, f
     g_texRectTVtx[0].tcord[0].v = v0;
 
 
-    g_texRectTVtx[1].x = ViewPortTranslatei_x(x1);
+    g_texRectTVtx[1].x = nX1;
     g_texRectTVtx[1].y = ViewPortTranslatei_y(y0);
     g_texRectTVtx[1].dcDiffuse = dif;
     g_texRectTVtx[1].dcSpecular = spe;
     g_texRectTVtx[1].tcord[0].u = u1;
     g_texRectTVtx[1].tcord[0].v = v0;
 
-    g_texRectTVtx[2].x = ViewPortTranslatei_x(x1);
+    g_texRectTVtx[2].x = nX1;
     g_texRectTVtx[2].y = ViewPortTranslatei_y(y1);
     g_texRectTVtx[2].dcDiffuse = dif;
     g_texRectTVtx[2].dcSpecular = spe;
     g_texRectTVtx[2].tcord[0].u = u1;
     g_texRectTVtx[2].tcord[0].v = v1;
 
-    g_texRectTVtx[3].x = ViewPortTranslatei_x(x0);
+    g_texRectTVtx[3].x = nX0;
     g_texRectTVtx[3].y = ViewPortTranslatei_y(y1);
     g_texRectTVtx[3].dcDiffuse = dif;
     g_texRectTVtx[3].dcSpecular = spe;

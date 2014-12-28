@@ -809,7 +809,6 @@ void COGL_FragmentProgramCombiner::InitCombinerCycle12(void)
         m_dwLastMux1 = m_pDecodedMux->m_dwMux1;
         bAlphaTestPreviousState = bAlphaTestState;
         bFogPreviousState = bFogState;
-        m_AlphaRef = (float)(m_pOGLRender->m_dwAlpha)/255.0f;    
 	}
 
 

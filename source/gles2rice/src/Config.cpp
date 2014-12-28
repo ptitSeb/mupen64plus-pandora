@@ -347,6 +347,7 @@ BOOL InitConfiguration(void)
     ConfigSetDefaultBool(l_ConfigVideoRice, "LoadHiResTextures", FALSE, "Enable hi-resolution texture file loading");
     ConfigSetDefaultBool(l_ConfigVideoRice, "DumpTexturesToFiles", FALSE, "Enable texture dumping");
     ConfigSetDefaultBool(l_ConfigVideoRice, "ShowFPS", FALSE, "Display On-screen FPS");
+    ConfigSetDefaultBool(l_ConfigVideoRice, "WideScreenHack", FALSE, "Widescreen hack");
 
     ConfigSetDefaultInt(l_ConfigVideoRice, "Mipmapping", 2, "Use Mipmapping? 0=no, 1=nearest, 2=bilinear, 3=trilinear");
     ConfigSetDefaultInt(l_ConfigVideoRice, "FogMethod", 0, "Enable, Disable or Force fog generation (0=Disable, 1=Enable n64 choose, 2=Force Fog)");
@@ -473,6 +474,7 @@ static void ReadConfiguration(void)
     options.bLoadHiResCRCOnly = ConfigGetParamBool(l_ConfigVideoRice, "LoadHiResCRCOnly");
     options.bDumpTexturesToFiles = ConfigGetParamBool(l_ConfigVideoRice, "DumpTexturesToFiles");
     options.bShowFPS = ConfigGetParamBool(l_ConfigVideoRice, "ShowFPS");
+    options.bWideScreenHack = ConfigGetParamBool(l_ConfigVideoRice, "WideScreenHack");
 
     options.mipmapping = ConfigGetParamInt(l_ConfigVideoRice, "Mipmapping");
 	//*SEB* Force to 0 has other setting crash on the Pandora
@@ -589,10 +591,12 @@ void GenerateCurrentRomOptions()
     else if ((strstr((char*)g_curRomInfo.szGameName, "ZELDA") != 0) && (strstr((char*)g_curRomInfo.szGameName, "MASK") != 0))
     {
         options.enableHackForGames = HACK_FOR_ZELDA_MM;
+        options.bWideScreenHack = true;
     }
     else if ((strstr((char*)g_curRomInfo.szGameName, "ZELDA") != 0))
     {
         options.enableHackForGames = HACK_FOR_ZELDA;
+        options.bWideScreenHack = true;
     }
     else if ((strstr((char*)g_curRomInfo.szGameName, "Ogre") != 0))
     {
@@ -689,6 +693,12 @@ void GenerateCurrentRomOptions()
     else if ((strncasecmp((char*)g_curRomInfo.szGameName, "MARIOKART64",11) == 0))
     {
         options.enableHackForGames = HACK_FOR_MARIO_KART;
+        options.bWideScreenHack = true;
+    }
+    else if ((strncasecmp((char*)g_curRomInfo.szGameName, "SUPER MARIO 64",14) == 0))
+    {
+        options.enableHackForGames = HACK_FOR_SUPER_MARIO_64;
+        options.bWideScreenHack = true;
     }
 
     if (options.enableHackForGames != NO_HACK_FOR_GAME)
@@ -707,6 +717,11 @@ void GenerateCurrentRomOptions()
     else currentRomOptions.bFastTexCRC--;
     if( currentRomOptions.bAccurateTextureMapping == 0 )    currentRomOptions.bAccurateTextureMapping = defaultRomOptions.bAccurateTextureMapping;
     else currentRomOptions.bAccurateTextureMapping--;
+
+    if ( options.bWideScreenHack && (windowSetting.uDisplayX==80) && (windowSetting.uDisplayWidth==640)) {
+        windowSetting.uDisplayX = 0;
+        windowSetting.uDisplayWidth = 800;
+    }
 
     options.bUseFullTMEM = ((options.bFullTMEM && (g_curRomInfo.dwFullTMEM == 0)) || g_curRomInfo.dwFullTMEM == 2);
 
