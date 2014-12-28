@@ -24,7 +24,11 @@
 #include <stdlib.h>
 #include <stdint.h> //include for uint64_t
 //#include <assert.h>
+#if !defined(DEBUG_MSG_TO_LOGFILE)
+#include <assert.h>
+#else
 #define assert(a)	{}
+#endif
 
 #include "../recomp.h"
 #include "../recomph.h" //include for function prototypes
@@ -295,6 +299,17 @@ static void nullf() {}
 #endif
 
 #define log_message(...) DebugMessage(M64MSG_VERBOSE, __VA_ARGS__)
+
+#if defined(DEBUG_MSG_TO_LOGFILE)
+#define assert(A)                                              \
+  do{                                                   \
+    if((A)==0) {                                            \
+      log_message("Assertion failure at line %d, in file %s",__LINE__,__FILE__);            \
+      exit(1);                                            \
+    }                                                   \
+  }                                                   \
+  while(0)
+#endif
 
 static void tlb_hacks()
 {

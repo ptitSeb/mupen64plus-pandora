@@ -88,6 +88,10 @@ static osd_message_t *l_msgVol = NULL;
 static osd_message_t *l_msgFF = NULL;
 static osd_message_t *l_msgPause = NULL;
 
+#if defined(DEBUG_MSG_TO_LOGFILE)
+FILE *pDebugFile = NULL;
+#endif
+
 /*********************************************************************************************************
 * static functions
 */
@@ -785,6 +789,9 @@ void new_vi(void)
 */
 m64p_error main_run(void)
 {
+#if defined(DEBUG_MSG_TO_LOGFILE)
+    pDebugFile = fopen ("core_debug.txt","w");
+#endif
     /* take the r4300 emulator mode from the config file at this point and cache it in a global variable */
     r4300emu = ConfigGetParamInt(g_CoreConfig, "R4300Emulator");
 
@@ -878,6 +885,11 @@ m64p_error main_run(void)
     // clean up
     g_EmulatorRunning = 0;
     StateChanged(M64CORE_EMU_STATE, M64EMU_STOPPED);
+
+#if defined(DEBUG_MSG_TO_LOGFILE)
+   if(pDebugFile != NULL)
+       fclose (pDebugFile);
+#endif
 
     return M64ERR_SUCCESS;
 }
