@@ -184,7 +184,7 @@ void CRender::SetProjection(const Matrix & mat, bool bPush, bool bReplace)
   
             //Hack for Zelda missing Heart (translate on z)
             if( options.enableHackForGames == HACK_FOR_ZELDA || options.enableHackForGames == HACK_FOR_ZELDA_MM) 
-                gRSP.projectionMtxs[gRSP.projectionMtxTop]._43 += 0.4f;
+                gRSP.projectionMtxs[gRSP.projectionMtxTop]._43 += 0.5f;
   
             //Hack for Mario kart in widescreen mode
             if((options.bWideScreenHack) && (options.enableHackForGames == HACK_FOR_MARIO_KART))
