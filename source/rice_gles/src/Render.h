@@ -29,6 +29,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "RSP_Parser.h"
 #include "RSP_S2DEX.h"
 
+#define WIDESCREEN_SCALE 0.75f
+#define WIDESCREEN_OFFSET 61.f/480.f
+
 enum TextureChannel 
 {
     TXT_RGB,
