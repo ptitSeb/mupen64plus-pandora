@@ -30,6 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <algorithm>
 
+#define FORCED_ALPHA_REF 100 
+
 extern FiddledVtx * g_pVtxBase;
 CRender * CRender::g_pRender=NULL;
 int CRender::gRenderReferenceCount=0;
@@ -2023,7 +2025,7 @@ void CRender::InitOtherModes(void)
     {
         if ( gRDP.otherMode.cvg_x_alpha && (gRDP.otherMode.alpha_cvg_sel || gRDP.otherMode.aa_en ) )
         {
-            ForceAlphaRef(128); // Strange, I have to use value=2 for pixel shader combiner for Nvidia FX5200
+            ForceAlphaRef(FORCED_ALPHA_REF); // Strange, I have to use value=2 for pixel shader combiner for Nvidia FX5200
                                 // for other video cards, value=1 is good enough.
             SetAlphaTestEnable(TRUE);
         }
@@ -2047,7 +2049,7 @@ void CRender::InitOtherModes(void)
         else
         {
             // RDP_ALPHA_COMPARE_THRESHOLD || RDP_ALPHA_COMPARE_DITHER
-            if( m_dwAlpha==0 )
+            if( m_dwAlpha==0 || m_dwAlpha==FORCED_ALPHA_REF )
                 ForceAlphaRef(1);
             else
                 ForceAlphaRef(m_dwAlpha);
