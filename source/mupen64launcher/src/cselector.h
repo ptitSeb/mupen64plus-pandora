@@ -345,6 +345,8 @@ class CSelector : public CBase
         vector<SDL_Rect>        RectButtonsLeft;    /**< Collection of position rects for the displayed buttons on left. */
         vector<SDL_Rect>        RectButtonsRight;   /**< Collection of position rects for the displayed buttons on right. */
         vector<SDL_Rect>        ScreenRectsDirty;   /**< Collection of rects for the areas of the screen that will be updated. */
+
+		item_pos_t 				old_line[MODE_TOTAL];	/**< Old position for display list  */
 };
 
 #endif // CSELECTOR_H

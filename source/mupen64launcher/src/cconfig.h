@@ -294,6 +294,13 @@ using namespace std;
 #define OPT_DEADZONE                "deadzone"
 #define HELP_DEADZONE               "Deadzone for analog joysticks."
 
+#define OPT_LASTINDEX               "lastindex"
+#define HELP_LASTINDEX              "Last index in the main list last used"
+#define OPT_LASTTOTAL               "lasttotal"
+#define HELP_LASTTOTAL              "Last total in the main list last used"
+#define OPT_LASTFIRST               "lastfirst"
+#define HELP_LASTFIRST              "Last first in the main list last used"
+
 /** @brief Internal user events
  */
 enum EVENT_T {
@@ -444,6 +451,9 @@ class CConfig : public CBase
         vector<uint8_t>     FontSizes;              /**< CONFIGURABLE Point size of the font sizes */
         vector<SDL_Color>   Colors;                 /**< NOT CONFIGURABLE Basic color types */
         vector<string>      ColorNames;             /**< NOT CONFIGURABLE Basic color names */
+        uint16_t            LastIndex;              /**< NOT CONFIGURABLE Last Index of main list */
+        uint16_t            LastTotal;              /**< NOT CONFIGURABLE Last Total of main list */
+        uint16_t            LastFirst;              /**< NOT CONFIGURABLE Last First of main list */
 };
 
 #endif // CCONFIG_H

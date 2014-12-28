@@ -240,6 +240,12 @@ int8_t CSelector::OpenResources( void )
         Log( "Failed to load config\n" );
         return 1;
     }
+    // handle last position...
+    old_line[MODE_SELECT_ENTRY].total = Config.LastTotal;
+    old_line[MODE_SELECT_ENTRY].absolute = Config.LastIndex;
+    old_line[MODE_SELECT_ENTRY].first = Config.LastFirst;
+    old_line[MODE_SELECT_ENTRY].relative = Config.LastIndex - Config.LastFirst;
+
 
     Log( "Loading ziplist.\n" );
     if (Config.UseZipSupport == true && Profile.Minizip.LoadUnzipList( ZipListPath ))
@@ -380,6 +386,9 @@ void CSelector::CloseResources( int8_t result )
 
     if (result == 0)
     {
+        Config.LastIndex = DisplayList.at(MODE_SELECT_ENTRY).absolute;
+        Config.LastFirst = DisplayList.at(MODE_SELECT_ENTRY).first;
+        Config.LastTotal = DisplayList.at(MODE_SELECT_ENTRY).total;
         Config.Save( ConfigPath );
         Profile.Save( ProfilePath, Config.Delimiter );
     }
@@ -728,6 +737,7 @@ void CSelector::SelectMode( void )
         DrawState_ButtonL  = true;
         DrawState_ButtonR  = true;
         Rescan = true;
+        old_line[old_mode] = DisplayList.at(old_mode);
     }
 }
 
@@ -740,6 +750,8 @@ int8_t CSelector::DisplaySelector( void )
         RescanItems();
         RefreshList = true;
         Rescan      = false;
+        if (old_line[Mode].total == DisplayList.at(Mode).total)
+            DisplayList.at(Mode) = old_line[Mode];
     }
 
     if (RefreshList)
@@ -926,6 +938,9 @@ void CSelector::RescanItems( void )
     DisplayList.at(Mode).first     = 0;
     DisplayList.at(Mode).last      = 0;
     DisplayList.at(Mode).total     = total;
+
+    if (old_line[Mode].total == DisplayList.at(Mode).total)
+        DisplayList.at(Mode) = old_line[Mode];
 }
 
 void CSelector::PopulateList( void )
@@ -2355,24 +2370,24 @@ int8_t CSelector::PollInputs( void )
                 }
                 else
                 {
-		    bool used=false;
+                    bool used=false;
                     for (index=0; index<EventPressCount.size(); index++)
                     {
                         if (event.key.keysym.sym == Config.KeyMaps.at(index))
                         {
                             EventPressCount.at(index) = EVENT_LOOPS_ON;
-			    used = true;
+                            used = true;
                         }
                     }
 // some hardcoded aternates keys
-		    if (!used)
-		    {
-			if (event.key.keysym.sym == SDLK_END)
-			{
-			    EventPressCount.at(EVENT_SELECT) = EVENT_LOOPS_ON;
-			    used = true;
-			}
-		    }
+        		    if (!used)
+        		    {
+            			if (event.key.keysym.sym == SDLK_END)
+            			{
+            			    EventPressCount.at(EVENT_SELECT) = EVENT_LOOPS_ON;
+            			    used = true;
+            			}
+        		    }
                     if (!used && Config.UnusedKeysLaunch)
                     {
                         EventPressCount.at(EVENT_SELECT) = EVENT_LOOPS_ON;
@@ -2381,30 +2396,30 @@ int8_t CSelector::PollInputs( void )
                 break;
 
             case SDL_KEYUP:
-		{
-		bool used=false;
-                for (index=0; index<EventReleased.size(); index++)
                 {
-                    if (event.key.keysym.sym == Config.KeyMaps.at(index))
+            		bool used=false;
+                    for (index=0; index<EventReleased.size(); index++)
                     {
-                        EventReleased.at(index) = true;
-			used = true;
-                    }		
-                }
-// some hardcoded aternates keys
-		if (!used)
-		{
-		    if (event.key.keysym.sym == SDLK_END)
-		    {
-			EventReleased.at(EVENT_SELECT) = true;
-			used = true;
-	            }
-		}
-                if (!used && Config.UnusedKeysLaunch)
-                {
-                    EventReleased.at(EVENT_SELECT) = true;
-                }
-		}
+                        if (event.key.keysym.sym == Config.KeyMaps.at(index))
+                        {
+                            EventReleased.at(index) = true;
+    		              	used = true;
+                        }		
+                    }
+    // some hardcoded aternates keys
+            		if (!used)
+            		{
+            		    if (event.key.keysym.sym == SDLK_END)
+            		    {
+            			EventReleased.at(EVENT_SELECT) = true;
+            			used = true;
+            	            }
+            		}
+                    if (!used && Config.UnusedKeysLaunch)
+                    {
+                        EventReleased.at(EVENT_SELECT) = true;
+                    }
+        		}
                 break;
 
             case SDL_JOYBUTTONDOWN:

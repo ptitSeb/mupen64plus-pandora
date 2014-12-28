@@ -95,7 +95,8 @@ CConfig::CConfig() : CBase(),
         JoyMaps                 (),
         FontSizes               (),
         Colors                  (),
-        ColorNames              ()
+        ColorNames              (),
+        LastIndex               (0)
 {
     SetDefaults();
 }
@@ -334,6 +335,10 @@ int8_t CConfig::Load( const string& location )
                 LOAD_INT( OPT_JOYQUIT,              JoyMaps.at(EVENT_QUIT) );
                 // Analog joystick mappings
                 LOAD_INT( OPT_DEADZONE,             AnalogDeadZone );
+                // Last index
+                LOAD_INT( OPT_LASTINDEX,            LastIndex );
+                LOAD_INT( OPT_LASTTOTAL,            LastTotal );
+                LOAD_INT( OPT_LASTFIRST,            LastFirst );
             }
         }
         fin.close();
@@ -499,6 +504,10 @@ int8_t CConfig::Save( const string& location )
         SAVE_INT( OPT_JOYBACK,              HELP_DEFAULT,                   JoyMaps.at(EVENT_BACK) );
         SAVE_INT( OPT_JOYQUIT,              HELP_DEFAULT,                   JoyMaps.at(EVENT_QUIT) );
         SAVE_INT( OPT_DEADZONE,             HELP_DEADZONE,                  AnalogDeadZone );
+        SAVE_LBL( "#   last position" );
+        SAVE_INT( OPT_LASTINDEX,             HELP_LASTINDEX,                  LastIndex );
+        SAVE_INT( OPT_LASTTOTAL,             HELP_LASTTOTAL,                  LastTotal );
+        SAVE_INT( OPT_LASTFIRST,             HELP_LASTFIRST,                  LastFirst );
         fout.close();
     }
     else
