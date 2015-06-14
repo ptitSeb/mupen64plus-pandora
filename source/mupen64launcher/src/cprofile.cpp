@@ -265,6 +265,9 @@ int8_t CProfile::LoadPlugins()
 	one.Name="GLES2N64";
 	one.So="mupen64plus-video-gles2n64";
 	plugin.Plugins.push_back(one);
+        one.Name="GLideN64";
+        one.So="mupen64plus-video-GLideN64";
+        plugin.Plugins.push_back(one);
 	one.Name="Arachnoid GLES1.1";
 	one.So="mupen64plus-video-arachnoid";
 	plugin.Plugins.push_back(one);
