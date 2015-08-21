@@ -1242,18 +1242,17 @@ void CProfile::ScanRom1Plugins( int8_t which, vector<listitem_t>& items )
 
 string CProfile::RomCRC(const string& name)
 {
-   char rom_header[0x40];	// rom header
-
+   unsigned char rom_header[0x40];	// rom header
    FILE *f;
    f = fopen(name.c_str(), "rb");
    if (!f) {
-      Log("Unable to open file\n");
+      Log("Unable to open file (error=%s)\n", strerror(errno));
       return string("");
    }
    fread(rom_header, 0x40, 1, f);
    fclose(f);
 	
-   char temp;
+   unsigned char temp;
 
    int i;
 
@@ -1284,7 +1283,7 @@ string CProfile::RomCRC(const string& name)
    // check it's a Valid rom
    if ((rom_header[0]!=0x80)||(rom_header[1]!=0x37)||(rom_header[2]!=0x12)||(rom_header[3]!=0x40)) 
    {
-      Log("Unable to open file\n");
+      Log("Bad ROM Header (%02X %02X %02X %02X)\n", rom_header[0], rom_header[1], rom_header[2], rom_header[3]);
       return string("");
    }
 
@@ -1294,7 +1293,7 @@ string CProfile::RomCRC(const string& name)
                  rom_header[0x13], rom_header[0x12], rom_header[0x11], rom_header[0x10],
                  rom_header[0x17], rom_header[0x16], rom_header[0x15], rom_header[0x14] );
 
-	
+printf("RomCRC(\"%s\")=%s\n", name.c_str(), buff);
    return string(buff);
 }
 
