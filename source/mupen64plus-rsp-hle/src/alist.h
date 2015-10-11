@@ -1,7 +1,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *   Mupen64plus-rsp-hle - alist_internal.h                                *
+ *   Mupen64plus-rsp-hle - alist.h                                         *
  *   Mupen64Plus homepage: http://code.google.com/p/mupen64plus/           *
- *   Copyright (C) 2002 Hacktarux                                          *
+ *   Copyright (C) 2014 Bobby Smiles                                       *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -22,9 +22,133 @@
 #ifndef ALIST_INTERNAL_H
 #define ALIST_INTERNAL_H
 
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
-typedef void (*acmd_callback_t)(uint32_t inst1, uint32_t inst2);
+struct hle_t;
+
+typedef void (*acmd_callback_t)(struct hle_t* hle, uint32_t w1, uint32_t w2);
+
+void alist_process(struct hle_t* hle, const acmd_callback_t abi[], unsigned int abi_size);
+uint32_t alist_get_address(struct hle_t* hle, uint32_t so, const uint32_t *segments, size_t n);
+void alist_set_address(struct hle_t* hle, uint32_t so, uint32_t *segments, size_t n);
+void alist_clear(struct hle_t* hle, uint16_t dmem, uint16_t count);
+void alist_load(struct hle_t* hle, uint16_t dmem, uint32_t address, uint16_t count);
+void alist_save(struct hle_t* hle, uint16_t dmem, uint32_t address, uint16_t count);
+void alist_move(struct hle_t* hle, uint16_t dmemo, uint16_t dmemi, uint16_t count);
+void alist_copy_every_other_sample(struct hle_t* hle, uint16_t dmemo, uint16_t dmemi, uint16_t count);
+void alist_repeat64(struct hle_t* hle, uint16_t dmemo, uint16_t dmemi, uint8_t count);
+void alist_copy_blocks(struct hle_t* hle, uint16_t dmemo, uint16_t dmemi, uint16_t block_size, uint8_t count);
+void alist_interleave(struct hle_t* hle, uint16_t dmemo, uint16_t left, uint16_t right, uint16_t count);
+
+void alist_envmix_exp(
+        struct hle_t* hle,
+        bool init,
+        bool aux,
+        uint16_t dmem_dl, uint16_t dmem_dr,
+        uint16_t dmem_wl, uint16_t dmem_wr,
+        uint16_t dmemi, uint16_t count,
+        int16_t dry, int16_t wet,
+        const int16_t *vol,
+        const int16_t *target,
+        const int32_t *rate,
+        uint32_t address);
+
+void alist_envmix_ge(
+        struct hle_t* hle,
+        bool init,
+        bool aux,
+        uint16_t dmem_dl, uint16_t dmem_dr,
+        uint16_t dmem_wl, uint16_t dmem_wr,
+        uint16_t dmemi, uint16_t count,
+        int16_t dry, int16_t wet,
+        const int16_t *vol,
+        const int16_t *target,
+        const int32_t *rate,
+        uint32_t address);
+
+void alist_envmix_lin(
+        struct hle_t* hle,
+        bool init,
+        uint16_t dmem_dl, uint16_t dmem_dr,
+        uint16_t dmem_wl, uint16_t dmem_wr,
+        uint16_t dmemi, uint16_t count,
+        int16_t dry, int16_t wet,
+        const int16_t *vol,
+        const int16_t *target,
+        const int32_t *rate,
+        uint32_t address);
+
+void alist_envmix_nead(
+        struct hle_t* hle,
+        bool swap_wet_LR,
+        uint16_t dmem_dl,
+        uint16_t dmem_dr,
+        uint16_t dmem_wl,
+        uint16_t dmem_wr,
+        uint16_t dmemi,
+        unsigned count,
+        uint16_t *env_values,
+        uint16_t *env_steps,
+        const int16_t *xors);
+
+void alist_mix(struct hle_t* hle, uint16_t dmemo, uint16_t dmemi, uint16_t count, int16_t gain);
+void alist_multQ44(struct hle_t* hle, uint16_t dmem, uint16_t count, int8_t gain);
+void alist_add(struct hle_t* hle, uint16_t dmemo, uint16_t dmemi, uint16_t count);
+
+void alist_adpcm(
+        struct hle_t* hle,
+        bool init,
+        bool loop,
+        bool two_bit_per_sample,
+        uint16_t dmemo,
+        uint16_t dmemi,
+        uint16_t count,
+        const int16_t* codebook,
+        uint32_t loop_address,
+        uint32_t last_frame_address);
+
+void alist_resample(
+        struct hle_t* hle, 
+        bool init,
+        bool flag2,
+        uint16_t dmemo, uint16_t dmemi, uint16_t count,
+        uint32_t pitch, uint32_t address);
+
+void alist_resample_zoh(
+        struct hle_t* hle,
+        uint16_t dmemo,
+        uint16_t dmemi,
+        uint16_t count,
+        uint32_t pitch,
+        uint32_t pitch_accu);
+
+void alist_filter(
+        struct hle_t* hle,
+        uint16_t dmem,
+        uint16_t count,
+        uint32_t address,
+        const uint32_t* lut_address);
+
+void alist_polef(
+        struct hle_t* hle,
+        bool init,
+        uint16_t dmemo,
+        uint16_t dmemi,
+        uint16_t count,
+        uint16_t gain,
+        int16_t* table,
+        uint32_t address);
+
+void alist_iirf(
+        struct hle_t* hle,
+        bool init,
+        uint16_t dmemo,
+        uint16_t dmemi,
+        uint16_t count,
+        int16_t* table,
+        uint32_t address);
 
 /*
  * Audio flags
@@ -42,16 +166,5 @@ typedef void (*acmd_callback_t)(uint32_t inst1, uint32_t inst2);
 #define A_NOAUX         0x00
 #define A_MAIN          0x00
 #define A_MIX           0x10
-
-/* FIXME: this decomposition into 3 ABI is not accurate,
- * there are a least 9 or 10 different ABI, each with one or a few revisions
- * for a total of almost 16 differents audio ucode.
- *
- * ABI2 in fact is a mix of at least 7 differents ABI which are mostly compatible
- * but not totally, that's why there is a isZeldaABI/isMKABI workaround.
- */
-extern const acmd_callback_t ABI1[0x10];
-extern const acmd_callback_t ABI2[0x20];
-extern const acmd_callback_t ABI3[0x10];
 
 #endif
