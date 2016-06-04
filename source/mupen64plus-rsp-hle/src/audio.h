@@ -1,5 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *   Mupen64plus-rsp-hle - hle.h                                           *
+ *   Mupen64plus-rsp-hle - audio.h                                         *
  *   Mupen64Plus homepage: http://code.google.com/p/mupen64plus/           *
  *   Copyright (C) 2014 Bobby Smiles                                       *
  *                                                                         *
@@ -19,36 +19,27 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef HLE_H
-#define HLE_H
+#ifndef AUDIO_H
+#define AUDIO_H
 
-#include "hle_internal.h"
+#include <stddef.h>
+#include <stdint.h>
 
-void hle_init(struct hle_t* hle,
-    unsigned char* dram,
-    unsigned char* dmem,
-    unsigned char* imem,
-    unsigned int* mi_intr,
-    unsigned int* sp_mem_addr,
-    unsigned int* sp_dram_addr,
-    unsigned int* sp_rd_length,
-    unsigned int* sp_wr_length,
-    unsigned int* sp_status,
-    unsigned int* sp_dma_full,
-    unsigned int* sp_dma_busy,
-    unsigned int* sp_pc,
-    unsigned int* sp_semaphore,
-    unsigned int* dpc_start,
-    unsigned int* dpc_end,
-    unsigned int* dpc_current,
-    unsigned int* dpc_status,
-    unsigned int* dpc_clock,
-    unsigned int* dpc_bufbusy,
-    unsigned int* dpc_pipebusy,
-    unsigned int* dpc_tmem,
-    void* user_defined);
+#include "common.h"
 
-void hle_execute(struct hle_t* hle);
+extern const int16_t RESAMPLE_LUT[64 * 4];
+
+int32_t rdot(size_t n, const int16_t *x, const int16_t *y);
+
+static inline int16_t adpcm_predict_sample(uint8_t byte, uint8_t mask,
+        unsigned lshift, unsigned rshift)
+{
+    int16_t sample = (uint16_t)(byte & mask) << lshift;
+    sample >>= rshift; /* signed */
+    return sample;
+}
+
+void adpcm_compute_residuals(int16_t* dst, const int16_t* src,
+        const int16_t* cb_entry, const int16_t* last_samples, size_t count);
 
 #endif
-
