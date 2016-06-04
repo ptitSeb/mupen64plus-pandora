@@ -27,6 +27,7 @@ extern "C" {
 #endif
 
 #include <stddef.h>
+
 #include "osal/preproc.h"
 
 struct list_head {
@@ -104,7 +105,7 @@ static osal_inline int list_empty(const struct list_head *head)
 #define list_for_each(pos, head) \
     for (pos = (head)->next; pos != (head); pos = pos->next)
 
-#define list_for_each_entry(pos, head, type, member) \
+#define list_for_each_entry_t(pos, head, type, member) \
     for (pos = list_entry((head)->next, type, member); \
          &pos->member != (head); \
          pos = list_entry(pos->member.next, type, member))
@@ -113,7 +114,7 @@ static osal_inline int list_empty(const struct list_head *head)
     for (pos = (head)->next, safe = pos->next; pos != (head); \
          pos = safe, safe = pos->next)
 
-#define list_for_each_entry_safe(pos, safe, head, type, member) \
+#define list_for_each_entry_safe_t(pos, safe, head, type, member) \
     for (pos = list_entry((head)->next, type, member), \
          safe = list_entry(pos->member.next, type, member); \
          &pos->member != (head); \

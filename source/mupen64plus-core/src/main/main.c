@@ -28,38 +28,57 @@
  * if you want to implement an interface, you should look here
  */
 
-#include <string.h>
-#include <stdlib.h>
-
 #include <SDL.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define M64P_CORE_PROTOTYPES 1
-#include "api/m64p_types.h"
+#include "ai/ai_controller.h"
 #include "api/callbacks.h"
 #include "api/config.h"
-#include "api/m64p_config.h"
 #include "api/debugger.h"
+#include "api/m64p_config.h"
+#include "api/m64p_types.h"
+#include "api/m64p_vidext.h"
 #include "api/vidext.h"
-
-#include "main.h"
+#include "dd/dd_controller.h"
+#include "cheat.h"
+#include "eep_file.h"
 #include "eventloop.h"
-#include "rom.h"
-#include "savestates.h"
-#include "util.h"
-
+#include "fla_file.h"
+#include "main.h"
 #include "memory/memory.h"
+#include "mpk_file.h"
 #include "osal/files.h"
 #include "osal/preproc.h"
 #include "osd/osd.h"
 #include "osd/screenshot.h"
+#include "pi/pi_controller.h"
+#include "plugin/emulate_game_controller_via_input_plugin.h"
+#include "plugin/emulate_speaker_via_audio_plugin.h"
+#include "plugin/get_time_using_C_localtime.h"
 #include "plugin/plugin.h"
+#include "plugin/rumble_via_input_plugin.h"
+#include "profile.h"
 #include "r4300/r4300.h"
-#include "r4300/interupt.h"
+#include "r4300/r4300_core.h"
 #include "r4300/reset.h"
+#include "rdp/rdp_core.h"
+#include "ri/ri_controller.h"
+#include "rom.h"
+#include "rsp/rsp_core.h"
+#include "savestates.h"
+#include "si/si_controller.h"
+#include "sra_file.h"
+#include "util.h"
+#include "vi/vi_controller.h"
 
 #ifdef DBG
+#include "debugger/dbg_debugger.h"
 #include "debugger/dbg_types.h"
-#include "debugger/debugger.h"
 #endif
 
 #ifdef WITH_LIRC
@@ -74,8 +93,24 @@ m64p_handle g_CoreConfig = NULL;
 
 m64p_frame_callback g_FrameCallback = NULL;
 
-int         g_MemHasBeenBSwapped = 0;   // store byte-swapped flag so we don't swap twice when re-playing game
-int         g_EmulatorRunning = 0;      // need separate boolean to tell if emulator is running, since --nogui doesn't use a thread
+int     g_MemHasBeenBSwapped = 0;   /* store byte-swapped flag so we don't swap twice when re-playing game */
+int     g_DDMemHasBeenBSwapped = 0; /* store byte-swapped flag so we don't swap twice when re-playing game */
+int     g_EmulatorRunning = 0;      /* need separate boolean to tell if emulator is running, since --nogui doesn't use a thread */
+
+ALIGN(16, uint32_t g_rdram[RDRAM_MAX_SIZE/4]);
+struct ai_controller g_ai;
+struct pi_controller g_pi;
+struct ri_controller g_ri;
+struct si_controller g_si;
+struct vi_controller g_vi;
+struct dd_controller g_dd;
+struct r4300_core g_r4300;
+struct rdp_core g_dp;
+struct rsp_core g_sp;
+
+int g_delay_si = 0;
+
+int g_gs_vi_counter = 0;
 
 /** static (local) variables **/
 static int   l_CurrentFrame = 0;         // frame counter
@@ -87,10 +122,6 @@ static int   l_MainSpeedLimit = 1;       // insert delay during vi_interrupt to 
 static osd_message_t *l_msgVol = NULL;
 static osd_message_t *l_msgFF = NULL;
 static osd_message_t *l_msgPause = NULL;
-
-#if defined(DEBUG_MSG_TO_LOGFILE)
-FILE *pDebugFile = NULL;
-#endif
 
 /*********************************************************************************************************
 * static functions
@@ -112,6 +143,26 @@ static const char *get_savepathdefault(const char *configpath)
     osal_mkdirp(path, 0700);
 
     return path;
+}
+
+static char *get_mempaks_path(void)
+{
+    return formatstr("%s%s.mpk", get_savesrampath(), ROM_SETTINGS.goodname);
+}
+
+static char *get_eeprom_path(void)
+{
+    return formatstr("%s%s.eep", get_savesrampath(), ROM_SETTINGS.goodname);
+}
+
+static char *get_sram_path(void)
+{
+    return formatstr("%s%s.sra", get_savesrampath(), ROM_SETTINGS.goodname);
+}
+
+static char *get_flashram_path(void)
+{
+    return formatstr("%s%s.fla", get_savesrampath(), ROM_SETTINGS.goodname);
 }
 
 
@@ -148,6 +199,13 @@ void main_message(m64p_msg_level level, unsigned int corner, const char *format,
     DebugMessage(level, "%s", buffer);
 }
 
+void main_check_inputs(void)
+{
+#ifdef WITH_LIRC
+    lircCheckInput();
+#endif
+    SDL_PumpEvents();
+}
 
 /*********************************************************************************************************
 * global functions, for adjusting the core emulator behavior
@@ -198,8 +256,8 @@ int main_set_core_defaults(void)
     ConfigSetDefaultString(g_CoreConfig, "SaveStatePath", "", "Path to directory where emulator save states (snapshots) are saved. If this is blank, the default value of ${UserConfigPath}/save will be used");
     ConfigSetDefaultString(g_CoreConfig, "SaveSRAMPath", "", "Path to directory where SRAM/EEPROM data (in-game saves) are stored. If this is blank, the default value of ${UserConfigPath}/save will be used");
     ConfigSetDefaultString(g_CoreConfig, "SharedDataPath", "", "Path to a directory to search when looking for shared data files");
-    ConfigSetDefaultBool(g_CoreConfig, "DelaySI", 0, "Delay interrupt after DMA SI read/write");
-    ConfigSetDefaultInt(g_CoreConfig, "CountPerOp", 2, "Force number of cycles per emulated instruction");
+    ConfigSetDefaultBool(g_CoreConfig, "DelaySI", 1, "Delay interrupt after DMA SI read/write");
+    ConfigSetDefaultInt(g_CoreConfig, "CountPerOp", 0, "Force number of cycles per emulated instruction");
 
     /* handle upgrades */
     if (bUpgrade)
@@ -384,18 +442,12 @@ void main_state_inc_slot(void)
     savestates_inc_slot();
 }
 
-static unsigned char StopRumble[64] = {0x23, 0x01, 0x03, 0xc0, 0x1b, 0x00, 0x00, 0x00,
-                                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                       0, 0, 0, 0, 0, 0, 0, 0};
-
 void main_state_load(const char *filename)
 {
-    input.controllerCommand(0, StopRumble);
-    input.controllerCommand(1, StopRumble);
-    input.controllerCommand(2, StopRumble);
-    input.controllerCommand(3, StopRumble);
+    rumblepak_rumble(&g_si.pif.controllers[0].rumblepak, RUMBLE_STOP);
+    rumblepak_rumble(&g_si.pif.controllers[1].rumblepak, RUMBLE_STOP);
+    rumblepak_rumble(&g_si.pif.controllers[2].rumblepak, RUMBLE_STOP);
+    rumblepak_rumble(&g_si.pif.controllers[3].rumblepak, RUMBLE_STOP);
 
     if (filename == NULL) // Save to slot
         savestates_set_job(savestates_job_load, savestates_type_m64p, NULL);
@@ -660,6 +712,12 @@ static void video_plugin_render_callback(int bScreenRedrawn)
     {
         osd_render();
     }
+
+    // if the input plugin specified a render callback, call it now
+    if(input.renderCallback)
+    {
+        input.renderCallback();
+    }
 }
 
 void new_frame(void)
@@ -676,61 +734,9 @@ void new_frame(void)
         StateChanged(M64CORE_EMU_STATE, M64EMU_PAUSED);
     }
 }
+#define TOL_FRAMES 4
 
-void new_vi_(void)
-{
-    int Dif;
-    unsigned int CurrentFPSTime;
-    static unsigned int LastFPSTime = 0;
-    static unsigned int CounterTime = 0;
-    static unsigned int CalculatedTime ;
-    static int VI_Counter = 0;
-
-    double VILimitMilliseconds = 1000.0 / ROM_PARAMS.vilimit;
-    double AdjustedLimit = VILimitMilliseconds * 100.0 / l_SpeedFactor;  // adjust for selected emulator speed
-    int time;
-
-    start_section(IDLE_SECTION);
-    VI_Counter++;
-
-#ifdef DBG
-    if(g_DebuggerActive) DebuggerCallback(DEBUG_UI_VI, 0);
-#endif
-
-    if(LastFPSTime == 0)
-    {
-        LastFPSTime = CounterTime = SDL_GetTicks();
-        return;
-    }
-    CurrentFPSTime = SDL_GetTicks();
-    
-    Dif = CurrentFPSTime - LastFPSTime;
-    
-    if (Dif < AdjustedLimit) 
-    {
-        CalculatedTime = (unsigned int) (CounterTime + AdjustedLimit * VI_Counter);
-        time = (int)(CalculatedTime - CurrentFPSTime);
-        if (time > 0 && l_MainSpeedLimit)
-        {
-            DebugMessage(M64MSG_VERBOSE, "    new_vi(): Waiting %ims", time);
-            SDL_Delay(time);
-        }
-        CurrentFPSTime = CurrentFPSTime + time;
-    }
-
-    if (CurrentFPSTime - CounterTime >= 1000.0 ) 
-    {
-        CounterTime = SDL_GetTicks();
-        VI_Counter = 0 ;
-    }
-    
-    LastFPSTime = CurrentFPSTime ;
-    end_section(IDLE_SECTION);
-}
-
-#define TOL_FRAMES 3
-
-void new_vi(void)
+static void apply_speed_limiter(void)
 {
     static int prev_vilimit, prev_factor;
     static float counter, interval;
@@ -748,7 +754,7 @@ void new_vi(void)
         prev_factor = l_SpeedFactor;
     }
 
-    start_section(IDLE_SECTION);
+    timed_section_start(IDLE_SECTION);
 
 #ifdef DBG
     if(g_DebuggerActive) DebuggerCallback(DEBUG_UI_VI, 0);
@@ -762,6 +768,7 @@ void new_vi(void)
     if (diff < -200 || diff > 200)
     {
         counter = now - 1 * 17;
+        timed_section_end(IDLE_SECTION);
         return;
     }
 
@@ -769,6 +776,7 @@ void new_vi(void)
     {
         //printf("lim %d\n", diff);
         counter = now - TOL_FRAMES * 17;
+        timed_section_end(IDLE_SECTION);
         return;
     }
 
@@ -781,7 +789,81 @@ void new_vi(void)
         SDL_Delay(time);
     }
 
-    end_section(IDLE_SECTION);
+    timed_section_end(IDLE_SECTION);
+}
+
+/* TODO: make a GameShark module and move that there */
+static void gs_apply_cheats(void)
+{
+    if(g_gs_vi_counter < 60)
+    {
+        if (g_gs_vi_counter == 0)
+            cheat_apply_cheats(ENTRY_BOOT);
+        g_gs_vi_counter++;
+    }
+    else
+    {
+        cheat_apply_cheats(ENTRY_VI);
+    }
+}
+
+static void pause_loop(void)
+{
+    if(rompause)
+    {
+        osd_render();  // draw Paused message in case gfx.updateScreen didn't do it
+        VidExt_GL_SwapBuffers();
+        while(rompause)
+        {
+            SDL_Delay(10);
+            main_check_inputs();
+        }
+    }
+}
+
+/* called on vertical interrupt.
+ * Allow the core to perform various things */
+void new_vi(void)
+{
+    gs_apply_cheats();
+
+    main_check_inputs();
+
+    timed_sections_refresh();
+
+    pause_loop();
+
+    apply_speed_limiter();
+}
+
+ static void connect_all(
+      struct r4300_core *r4300,
+      struct rdp_core* dp,
+      struct rsp_core* sp,
+      struct ai_controller* ai,
+      struct pi_controller* pi,
+      struct ri_controller* ri,
+      struct si_controller* si,
+      struct vi_controller* vi,
+      struct dd_controller* dd,
+      uint32_t* dram,
+      size_t dram_size,
+      uint8_t *rom,
+      size_t rom_size,
+      uint8_t *ddrom,
+      size_t ddrom_size,
+      uint8_t *dd_disk,
+      size_t dd_disk_size
+      )
+{
+   connect_rdp(dp, r4300, sp, ri);
+   connect_rsp(sp, r4300, dp, ri);
+   connect_ai(ai, r4300, ri, vi);
+   connect_pi(pi, r4300, ri, rom, rom_size, ddrom, ddrom_size);
+   connect_ri(ri, dram, dram_size);
+   connect_si(si, r4300, ri);
+   connect_vi(vi, r4300);
+   connect_dd(dd, r4300, dd_disk, dd_disk_size);
 }
 
 /*********************************************************************************************************
@@ -789,9 +871,14 @@ void new_vi(void)
 */
 m64p_error main_run(void)
 {
-#if defined(DEBUG_MSG_TO_LOGFILE)
-    pDebugFile = fopen ("core_debug.txt","w");
-#endif
+    size_t i;
+    unsigned int disable_extra_mem;
+    struct eep_file eep;
+    struct fla_file fla;
+    struct mpk_file mpk;
+    struct sra_file sra;
+    static int channels[] = { 0, 1, 2, 3 };
+
     /* take the r4300 emulator mode from the config file at this point and cache it in a global variable */
     r4300emu = ConfigGetParamInt(g_CoreConfig, "R4300Emulator");
 
@@ -799,36 +886,47 @@ m64p_error main_run(void)
     savestates_set_autoinc_slot(ConfigGetParamBool(g_CoreConfig, "AutoStateSlotIncrement"));
     savestates_select_slot(ConfigGetParamInt(g_CoreConfig, "CurrentStateSlot"));
     no_compiled_jump = ConfigGetParamBool(g_CoreConfig, "NoCompiledJump");
-	if (delay_si==-1) delay_si = ConfigGetParamBool(g_CoreConfig, "DelaySI");
-    if (count_per_op==-1) count_per_op = ConfigGetParamInt(g_CoreConfig, "CountPerOp");
+    g_delay_si = ConfigGetParamBool(g_CoreConfig, "DelaySI");
+    disable_extra_mem = ConfigGetParamInt(g_CoreConfig, "DisableExtraMem");
+    count_per_op = ConfigGetParamInt(g_CoreConfig, "CountPerOp");
     if (count_per_op <= 0)
-        count_per_op = 2;
+        count_per_op = ROM_PARAMS.countperop;
+    cheat_add_hacks();
 
-	// initialize memory, and do byte-swapping if it's not been done yet
+    /* do byte-swapping if it's not been done yet */
     if (g_MemHasBeenBSwapped == 0)
     {
-        init_memory(1);
+        swap_buffer(g_rom, 4, g_rom_size/4);
         g_MemHasBeenBSwapped = 1;
     }
-    else
-    {
-        init_memory(0);
-    }
+
+   if (g_DDMemHasBeenBSwapped == 0)
+   {
+      swap_buffer(g_ddrom, 4, g_ddrom_size/4);
+      g_DDMemHasBeenBSwapped = 1;
+   }
+
+   connect_all(&g_r4300, &g_dp, &g_sp,
+         &g_ai, &g_pi, &g_ri, &g_si, &g_vi, &g_dd,
+         g_rdram, (disable_extra_mem == 0) ? 0x800000 : 0x400000,
+         g_rom, g_rom_size, g_ddrom, g_ddrom_size, g_dd_disk, g_dd_disk_size);
+
+    init_memory();
+
     // Attach rom to plugins
     if (!gfx.romOpen())
     {
-        free_memory(); return M64ERR_PLUGIN_FAIL;
+        return M64ERR_PLUGIN_FAIL;
     }
     if (!audio.romOpen())
     {
-        gfx.romClosed(); free_memory(); return M64ERR_PLUGIN_FAIL;
+        gfx.romClosed(); return M64ERR_PLUGIN_FAIL;
     }
     if (!input.romOpen())
     {
-        audio.romClosed(); gfx.romClosed(); free_memory(); return M64ERR_PLUGIN_FAIL;
+        audio.romClosed(); gfx.romClosed(); return M64ERR_PLUGIN_FAIL;
     }
 
-	
     /* set up the SDL key repeat and event filter to catch keyboard/joystick commands for the core */
     event_initialize();
 
@@ -844,6 +942,69 @@ m64p_error main_run(void)
     // setup rendering callback from video plugin to the core, for screenshots and On-Screen-Display
     gfx.setRenderingCallback(video_plugin_render_callback);
 
+    /* connect external audio sink to AI component */
+    g_ai.user_data = &g_ai;
+    g_ai.set_audio_format = set_audio_format_via_audio_plugin;
+    g_ai.push_audio_samples = push_audio_samples_via_audio_plugin;
+
+    /* connect external time source to AF_RTC component */
+    g_si.pif.af_rtc.user_data = NULL;
+    g_si.pif.af_rtc.get_time = get_time_using_C_localtime;
+
+    /* connect external game controllers */
+    for(i = 0; i < GAME_CONTROLLERS_COUNT; ++i)
+    {
+        g_si.pif.controllers[i].user_data = &channels[i];
+        g_si.pif.controllers[i].is_connected = egcvip_is_connected;
+        g_si.pif.controllers[i].get_input = egcvip_get_input;
+    }
+
+    /* connect external rumblepaks */
+    for(i = 0; i < GAME_CONTROLLERS_COUNT; ++i)
+    {
+        g_si.pif.controllers[i].rumblepak.user_data = &channels[i];
+        g_si.pif.controllers[i].rumblepak.rumble = rvip_rumble;
+    }
+
+    /* open mpk file (if any) and connect it to mempaks */
+    open_mpk_file(&mpk, get_mempaks_path());
+    for(i = 0; i < GAME_CONTROLLERS_COUNT; ++i)
+    {
+        g_si.pif.controllers[i].mempak.user_data = &mpk;
+        g_si.pif.controllers[i].mempak.save = save_mpk_file;
+        g_si.pif.controllers[i].mempak.data = mpk_file_ptr(&mpk, i);
+    }
+
+    /* open eep file (if any) and connect it to eeprom */
+    open_eep_file(&eep, get_eeprom_path());
+    g_si.pif.eeprom.user_data = &eep;
+    g_si.pif.eeprom.save = save_eep_file;
+    g_si.pif.eeprom.data = eep_file_ptr(&eep);
+    if (ROM_SETTINGS.savetype != EEPROM_16KB)
+    {
+        /* 4kbits EEPROM */
+        g_si.pif.eeprom.size = 0x200;
+        g_si.pif.eeprom.id = 0x8000;
+    }
+    else
+    {
+        /* 16kbits EEPROM */
+        g_si.pif.eeprom.size = 0x800;
+        g_si.pif.eeprom.id = 0xc000;
+    }
+
+    /* open fla file (if any) and connect it to flashram */
+    open_fla_file(&fla, get_flashram_path());
+    g_pi.flashram.user_data = &fla;
+    g_pi.flashram.save = save_fla_file;
+    g_pi.flashram.data = fla_file_ptr(&fla);
+
+    /* open sra file (if any) and connect it to SRAM */
+    open_sra_file(&sra, get_sram_path());
+    g_pi.sram.user_data = &sra;
+    g_pi.sram.save = save_sra_file;
+    g_pi.sram.data = sra_file_ptr(&sra);
+
 #ifdef WITH_LIRC
     lircStart();
 #endif // WITH_LIRC
@@ -852,10 +1013,13 @@ m64p_error main_run(void)
     if (ConfigGetParamBool(g_CoreConfig, "EnableDebugger"))
         init_debugger();
 #endif
+
     /* Startup message on the OSD */
     osd_new_message(OSD_MIDDLE_CENTER, "Mupen64Plus Started...");
+
     g_EmulatorRunning = 1;
     StateChanged(M64CORE_EMU_STATE, M64EMU_RUNNING);
+
     /* call r4300 CPU core and run the game */
     r4300_reset_hard();
     r4300_reset_soft();
@@ -871,6 +1035,11 @@ m64p_error main_run(void)
         destroy_debugger();
 #endif
 
+    close_sra_file(&sra);
+    close_fla_file(&fla);
+    close_eep_file(&eep);
+    close_mpk_file(&mpk);
+
     if (ConfigGetParamBool(g_CoreConfig, "OnScreenDisplay"))
     {
         osd_exit();
@@ -880,16 +1049,10 @@ m64p_error main_run(void)
     input.romClosed();
     audio.romClosed();
     gfx.romClosed();
-    free_memory();
 
     // clean up
     g_EmulatorRunning = 0;
     StateChanged(M64CORE_EMU_STATE, M64EMU_STOPPED);
-
-#if defined(DEBUG_MSG_TO_LOGFILE)
-   if(pDebugFile != NULL)
-       fclose (pDebugFile);
-#endif
 
     return M64ERR_SUCCESS;
 }

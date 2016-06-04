@@ -20,10 +20,16 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "workqueue.h"
-#include "api/callbacks.h"
 
 #include <SDL.h>
 #include <SDL_thread.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "api/callbacks.h"
+#include "api/m64p_types.h"
+#include "main/list.h"
 
 #define WORKQUEUE_THREADS 1
 
@@ -154,7 +160,7 @@ void workqueue_shutdown(void)
         queue_work(work);
     }
 
-    list_for_each_entry_safe(thread, safe, &workqueue_mgmt.thread_list, struct workqueue_thread, list_mgmt) {
+    list_for_each_entry_safe_t(thread, safe, &workqueue_mgmt.thread_list, struct workqueue_thread, list_mgmt) {
         list_del(&thread->list_mgmt);
         SDL_WaitThread(thread->thread, &status);
         SDL_DestroyCond(thread->work_avail);

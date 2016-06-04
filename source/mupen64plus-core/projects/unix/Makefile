@@ -365,38 +365,73 @@ OBJDIR = _obj$(POSTFIX)
 
 # list of required source files for compilation
 SOURCE = \
+	$(SRCDIR)/ai/ai_controller.c \
 	$(SRCDIR)/api/callbacks.c \
 	$(SRCDIR)/api/common.c \
 	$(SRCDIR)/api/config.c \
 	$(SRCDIR)/api/debugger.c \
 	$(SRCDIR)/api/frontend.c \
 	$(SRCDIR)/api/vidext.c \
+	$(SRCDIR)/dd/dd_controller.c \
+	$(SRCDIR)/dd/dd_disk.c \
+	$(SRCDIR)/dd/dd_rom.c \
 	$(SRCDIR)/main/main.c \
 	$(SRCDIR)/main/util.c \
 	$(SRCDIR)/main/cheat.c \
+	$(SRCDIR)/main/eep_file.c \
 	$(SRCDIR)/main/eventloop.c \
+	$(SRCDIR)/main/fla_file.c \
 	$(SRCDIR)/main/md5.c \
+	$(SRCDIR)/main/mpk_file.c \
+	$(SRCDIR)/main/profile.c \
 	$(SRCDIR)/main/rom.c \
 	$(SRCDIR)/main/savestates.c \
+	$(SRCDIR)/main/sdl_key_converter.c \
 	$(SRCDIR)/main/workqueue.c \
-	$(SRCDIR)/memory/dma.c \
-	$(SRCDIR)/memory/flashram.c \
+	$(SRCDIR)/main/sra_file.c \
 	$(SRCDIR)/memory/memory.c \
-	$(SRCDIR)/memory/n64_cic_nus_6105.c \
-	$(SRCDIR)/memory/pif.c \
-	$(SRCDIR)/memory/tlb.c \
+	$(SRCDIR)/pi/cart_rom.c \
+	$(SRCDIR)/pi/flashram.c \
+	$(SRCDIR)/pi/pi_controller.c \
+	$(SRCDIR)/pi/sram.c \
+	$(SRCDIR)/plugin/emulate_game_controller_via_input_plugin.c \
+	$(SRCDIR)/plugin/emulate_speaker_via_audio_plugin.c \
+	$(SRCDIR)/plugin/get_time_using_C_localtime.c \
+	$(SRCDIR)/plugin/rumble_via_input_plugin.c \
 	$(SRCDIR)/plugin/plugin.c \
 	$(SRCDIR)/plugin/dummy_video.c \
 	$(SRCDIR)/plugin/dummy_audio.c \
 	$(SRCDIR)/plugin/dummy_input.c \
 	$(SRCDIR)/plugin/dummy_rsp.c \
 	$(SRCDIR)/r4300/r4300.c \
+	$(SRCDIR)/r4300/cached_interp.c \
+	$(SRCDIR)/r4300/cp0.c \
+	$(SRCDIR)/r4300/cp1.c \
 	$(SRCDIR)/r4300/exception.c \
+	$(SRCDIR)/r4300/instr_counters.c \
 	$(SRCDIR)/r4300/interupt.c \
-	$(SRCDIR)/r4300/profile.c \
+	$(SRCDIR)/r4300/mi_controller.c \
 	$(SRCDIR)/r4300/pure_interp.c \
+	$(SRCDIR)/r4300/r4300_core.c \
 	$(SRCDIR)/r4300/recomp.c \
 	$(SRCDIR)/r4300/reset.c \
+	$(SRCDIR)/r4300/tlb.c \
+	$(SRCDIR)/rdp/fb.c \
+	$(SRCDIR)/rdp/rdp_core.c \
+	$(SRCDIR)/ri/rdram.c \
+	$(SRCDIR)/ri/rdram_detection_hack.c \
+	$(SRCDIR)/ri/ri_controller.c \
+	$(SRCDIR)/rsp/rsp_core.c \
+	$(SRCDIR)/si/af_rtc.c \
+	$(SRCDIR)/si/cic.c \
+	$(SRCDIR)/si/eeprom.c \
+	$(SRCDIR)/si/game_controller.c \
+	$(SRCDIR)/si/mempak.c \
+	$(SRCDIR)/si/n64_cic_nus_6105.c \
+	$(SRCDIR)/si/pif.c \
+	$(SRCDIR)/si/rumblepak.c \
+	$(SRCDIR)/si/si_controller.c \
+	$(SRCDIR)/vi/vi_controller.c \
 	$(SRCDIR)/osd/screenshot.cpp
 ifeq ("$(OS)","MINGW")
 SOURCE += \
@@ -439,9 +474,14 @@ ifneq ($(DYNAREC), )
   ifeq ($(NEW_DYNAREC), 1)
     ifeq ($(DYNAREC), x86)
       CFLAGS += -DNEW_DYNAREC=1
+      SOURCE += \
+      	$(SRCDIR)/r4300/new_dynarec/x86/linkage_x86.asm
     else
       ifeq ($(DYNAREC), arm)
-        CFLAGS += -DNEW_DYNAREC=3
+        CFLAGS += -DNEW_DYNAREC=3 -I$(SRCDIR)/r4300/new_dynarec
+        SOURCE += \
+        	$(SRCDIR)/r4300/new_dynarec/arm/linkage_arm.S \
+        	$(SRCDIR)/r4300/new_dynarec/arm/arm_cpu_features.c
       else
         $(error NEW_DYNAREC is only supported on 32 bit x86 and 32 bit armel)
       endif
@@ -449,7 +489,6 @@ ifneq ($(DYNAREC), )
 
     SOURCE += \
       $(SRCDIR)/r4300/empty_dynarec.c \
-      $(SRCDIR)/r4300/new_dynarec/linkage_$(DYNAREC).S \
       $(SRCDIR)/r4300/new_dynarec/new_dynarec.c
   else
     SOURCE += \

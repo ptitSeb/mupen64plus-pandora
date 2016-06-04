@@ -19,20 +19,30 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef NEW_DYNAREC_H
-#define NEW_DYNAREC_H
+#ifndef M64P_R4300_NEW_DYNAREC_H
+#define M64P_R4300_NEW_DYNAREC_H
+
+#include <stddef.h>
+#include <stdint.h>
 
 #define NEW_DYNAREC_X86 1
 #define NEW_DYNAREC_AMD64 2
 #define NEW_DYNAREC_ARM 3
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern int pcaddr;
 extern int pending_exception;
+#ifdef __cplusplus
+}
+#endif
 
 void invalidate_all_pages(void);
 void invalidate_block(unsigned int block);
+void invalidate_cached_code_new_dynarec(uint32_t address, size_t size);
 void new_dynarec_init(void);
 void new_dyna_start(void);
 void new_dynarec_cleanup(void);
 
-#endif /* NEW_DYNAREC_H */
+#endif /* M64P_R4300_NEW_DYNAREC_H */

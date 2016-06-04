@@ -23,16 +23,16 @@
  * outside of the core library.
  */
 
+#include <SDL.h>
 #include <stdlib.h>
 #include <string.h>
-#include <SDL.h>
 
 #define M64P_CORE_PROTOTYPES 1
+#include "../osd/osd.h"
+#include "callbacks.h"
 #include "m64p_types.h"
 #include "m64p_vidext.h"
 #include "vidext.h"
-#include "callbacks.h"
-#include "../osd/osd.h"
 
 #if SDL_VERSION_ATLEAST(2,0,0)
 #include "vidext_sdl2_compat.h"
@@ -55,7 +55,7 @@ static int useFB = 0;
 #endif
 
 /* local variables */
-static m64p_video_extension_functions l_ExternalVideoFuncTable = {10, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+static m64p_video_extension_functions l_ExternalVideoFuncTable = {11, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 static int l_VideoExtensionActive = 0;
 static int l_VideoOutputActive = 0;
 static int l_Fullscreen = 0;
@@ -137,24 +137,28 @@ EXPORT m64p_error CALL VidExt_Quit(void)
 
     if (!SDL_WasInit(SDL_INIT_VIDEO))
         return M64ERR_NOT_INIT;
-	#ifdef PANDORA
-	#ifdef USE_EGL_SDL
-	EGL_Close();
-	#else
-	if (eglDisplay) {
-		eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-		if (eglContext)
-			eglDestroyContext(eglDisplay, eglContext);
-		if (eglSurface)
-			eglDestroySurface(eglDisplay, eglSurface);
-		eglTerminate(eglDisplay);
-	}
-	eglDisplay = NULL;
-	eglContext = NULL;
-	eglSurface = NULL;
-	#endif
-	#endif
+#ifdef PANDORA
+#ifdef USE_EGL_SDL
+    EGL_Close();
+#else
+    if (eglDisplay) {
+        eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        if (eglContext)
+            eglDestroyContext(eglDisplay, eglContext);
+        if (eglSurface)
+            eglDestroySurface(eglDisplay, eglSurface);
+        eglTerminate(eglDisplay);
+    }
+    eglDisplay = NULL;
+    eglContext = NULL;
+    eglSurface = NULL;
+#endif
+#endif
+
     SDL_ShowCursor(SDL_ENABLE);
+#if SDL_VERSION_ATLEAST(2,0,0)
+    SDL2_DestroyWindow();
+#endif
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     l_pScreen = NULL;
     l_VideoOutputActive = 0;
@@ -178,22 +182,23 @@ EXPORT m64p_error CALL VidExt_ListFullscreenModes(m64p_2d_size *SizeArray, int *
         return M64ERR_NOT_INIT;
 
     /* get a list of SDL video modes */
-	#ifdef PANDORA
+#ifdef PANDORA
     videoFlags = SDL_FULLSCREEN;
-	#else
+#else
     videoFlags = SDL_OPENGL | SDL_FULLSCREEN;
-	#endif
+#endif
 
     if ((videoInfo = SDL_GetVideoInfo()) == NULL)
     {
         DebugMessage(M64MSG_ERROR, "SDL_GetVideoInfo query failed: %s", SDL_GetError());
         return M64ERR_SYSTEM_FAIL;
     }
-	#ifndef PANDORA
+
+#ifndef PANDORA
     if(videoInfo->hw_available)
         videoFlags |= SDL_HWSURFACE;
     else
-    #endif
+#endif
         videoFlags |= SDL_SWSURFACE;
 
     modes = SDL_ListModes(NULL, videoFlags);
@@ -245,22 +250,22 @@ printf("SDL was not init, aborting\n");
     /* Get SDL video flags to use */
     if (ScreenMode == M64VIDEO_WINDOWED)
     {
-		#ifdef PANDORA
-		videoFlags = 0;
-		useFB = 0;
-		#else
+#ifdef PANDORA
+        videoFlags = 0;
+        useFB = 0;
+#else
         videoFlags = SDL_OPENGL;
-		#endif
+#endif
         if (Flags & M64VIDEOFLAG_SUPPORT_RESIZING)
             videoFlags |= SDL_RESIZABLE;
     }
     else if (ScreenMode == M64VIDEO_FULLSCREEN)
     {
-		#ifdef PANDORA
+#ifdef PANDORA
         videoFlags = SDL_FULLSCREEN;
-		#else
+#else
         videoFlags = SDL_OPENGL | SDL_FULLSCREEN;
-		#endif
+#endif
     }
     else
     {
@@ -272,11 +277,11 @@ printf("SDL was not init, aborting\n");
         DebugMessage(M64MSG_ERROR, "SDL_GetVideoInfo query failed: %s", SDL_GetError());
         return M64ERR_SYSTEM_FAIL;
     }
-	#ifndef PANDORA
+#ifndef PANDORA
     if (videoInfo->hw_available)
         videoFlags |= SDL_HWSURFACE;
     else
-    #endif
+#endif
         videoFlags |= SDL_SWSURFACE;
 
     /* set the mode */
@@ -291,64 +296,62 @@ printf("SDL was not init, aborting\n");
         DebugMessage(M64MSG_ERROR, "SDL_SetVideoMode failed: %s", SDL_GetError());
         return M64ERR_SYSTEM_FAIL;
     }
-	#ifdef PANDORA
-	// Setup EGL Context...
-//	if ((Width==800) && (Height==480))	// 800x480 => FB and no X11
-		useFB = 1;		
-//	Width = 800;
-//	Height = 480;
-	#ifdef  USE_EGL_SDL
-	EGL_Open(Width, Height);
-	#else
+#ifdef PANDORA
+    // Setup EGL Context...
+    useFB = 1;      
+    #ifdef  USE_EGL_SDL
+    EGL_Open(Width, Height);
+    #else
     EGLint maj, min;
     SDL_VERSION(&sysWmInfo.version);
     SDL_GetWMInfo(&sysWmInfo);
     eglDisplay = eglGetDisplay( (useFB)? EGL_DEFAULT_DISPLAY:(EGLNativeDisplayType)sysWmInfo.info.x11.display );
-	if (!eglInitialize(eglDisplay, &maj, &min)) {
-		printf("eglinfo: eglInitialize failed\n");
-	}
-	printf("EGL v%i.%i initialized%s\n", maj, min, (useFB)?" using FB":"");
-	EGLint attribs[] =
-	{
-		EGL_RED_SIZE,        5,
-		EGL_GREEN_SIZE,      6,
-		EGL_BLUE_SIZE,       5,
-		EGL_DEPTH_SIZE,      16,
-		EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_SAMPLE_BUFFERS,  0,
-		EGL_SAMPLES,         0,
-		EGL_NONE
-	};
-	EGLint ctx_attribs[] =
-	{
-		EGL_CONTEXT_CLIENT_VERSION, 2,
-		EGL_NONE
-	};
+    if (!eglInitialize(eglDisplay, &maj, &min)) {
+        printf("eglinfo: eglInitialize failed\n");
+    }
+    printf("EGL v%i.%i initialized%s\n", maj, min, (useFB)?" using FB":"");
+    EGLint attribs[] =
+    {
+        EGL_RED_SIZE,        5,
+        EGL_GREEN_SIZE,      6,
+        EGL_BLUE_SIZE,       5,
+        EGL_DEPTH_SIZE,      16,
+        EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_SAMPLE_BUFFERS,  0,
+        EGL_SAMPLES,         0,
+        EGL_NONE
+    };
+    EGLint ctx_attribs[] =
+    {
+        EGL_CONTEXT_CLIENT_VERSION, 2,
+        EGL_NONE
+    };
 
 
-	EGLint num_configs;
-	if (!eglChooseConfig(eglDisplay, attribs, &eglConfig, 1, &num_configs) || (num_configs < 1))
-	{
-		printf("Could not find config for %s (perhaps this API is unsupported?)\n", "GLES2");
-	}
+    EGLint num_configs;
+    if (!eglChooseConfig(eglDisplay, attribs, &eglConfig, 1, &num_configs) || (num_configs < 1))
+    {
+        printf("Could not find config for %s (perhaps this API is unsupported?)\n", "GLES2");
+    }
 
-	EGLint vid;
-	if (!eglGetConfigAttrib(eglDisplay, eglConfig, EGL_NATIVE_VISUAL_ID, &vid))
-	{
-		printf("Could not get native visual ID from chosen config\n");
-	}
-	eglBindAPI(EGL_OPENGL_ES_API);
+    EGLint vid;
+    if (!eglGetConfigAttrib(eglDisplay, eglConfig, EGL_NATIVE_VISUAL_ID, &vid))
+    {
+        printf("Could not get native visual ID from chosen config\n");
+    }
+    eglBindAPI(EGL_OPENGL_ES_API);
 
-	eglContext=eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, ctx_attribs);
-	eglSurface=eglCreateWindowSurface(eglDisplay, eglConfig, (NativeWindowType)((useFB)?NULL:sysWmInfo.info.x11.window), NULL);
+    eglContext=eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, ctx_attribs);
+    eglSurface=eglCreateWindowSurface(eglDisplay, eglConfig, (NativeWindowType)((useFB)?NULL:sysWmInfo.info.x11.window), NULL);
 
-	if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext))
-	{
-		printf("eglMakeCurrent() failed\n");
-	}
-	#endif	//eglport
-	#endif
+    if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext))
+    {
+        printf("eglMakeCurrent() failed\n");
+    }
+#endif  //eglport
+#endif
+
 
     SDL_ShowCursor(SDL_DISABLE);
 
@@ -391,23 +394,23 @@ EXPORT m64p_error CALL VidExt_ResizeWindow(int Width, int Height)
     }
 
     /* Get SDL video flags to use */
-	#ifdef PANDORA
-	if (useFB)
-		return M64ERR_INVALID_STATE;
+#ifdef PANDORA
+    if (useFB)
+        return M64ERR_INVALID_STATE;
     videoFlags = SDL_RESIZABLE;
-	#else
+#else
     videoFlags = SDL_OPENGL | SDL_RESIZABLE;
-	#endif
+#endif
     if ((videoInfo = SDL_GetVideoInfo()) == NULL)
     {
         DebugMessage(M64MSG_ERROR, "SDL_GetVideoInfo query failed: %s", SDL_GetError());
         return M64ERR_SYSTEM_FAIL;
     }
-    #ifndef PANDORA
+#ifndef PANDORA
     if (videoInfo->hw_available)
         videoFlags |= SDL_HWSURFACE;
     else
-    #endif
+#endif
         videoFlags |= SDL_SWSURFACE;
 
     // destroy the On-Screen Display
@@ -466,10 +469,6 @@ EXPORT m64p_error CALL VidExt_ToggleFullScreen(void)
      * this resets the OpenGL context and video plugins don't support it yet.
      * Uncomment the next line to test it: */
     //return VidExt_SetVideoMode(l_pScreen->w, l_pScreen->h, l_pScreen->format->BitsPerPixel, l_Fullscreen ? M64VIDEO_WINDOWED : M64VIDEO_FULLSCREEN);
-/*	#ifdef PANDORA
-	if (useFB)	// no effect on FB
-		return M64ERR_INVALID_STATE;
-	#endif*/
     if (SDL_WM_ToggleFullScreen(l_pScreen) == 1)
     {
         l_Fullscreen = !l_Fullscreen;
@@ -511,7 +510,13 @@ static const GLAttrMapNode GLAttrMap[] = {
         { M64P_GL_SWAP_CONTROL, SDL_GL_SWAP_CONTROL },
 #endif
         { M64P_GL_MULTISAMPLEBUFFERS, SDL_GL_MULTISAMPLEBUFFERS },
-        { M64P_GL_MULTISAMPLESAMPLES, SDL_GL_MULTISAMPLESAMPLES }};
+        { M64P_GL_MULTISAMPLESAMPLES, SDL_GL_MULTISAMPLESAMPLES }
+#if SDL_VERSION_ATLEAST(2,0,0)
+       ,{ M64P_GL_CONTEXT_MAJOR_VERSION, SDL_GL_CONTEXT_MAJOR_VERSION },
+        { M64P_GL_CONTEXT_MINOR_VERSION, SDL_GL_CONTEXT_MINOR_VERSION },
+        { M64P_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_MASK }
+#endif
+};
 static const int mapSize = sizeof(GLAttrMap) / sizeof(GLAttrMapNode);
 
 EXPORT m64p_error CALL VidExt_GL_SetAttribute(m64p_GLattr Attr, int Value)
@@ -525,9 +530,31 @@ EXPORT m64p_error CALL VidExt_GL_SetAttribute(m64p_GLattr Attr, int Value)
     if (!SDL_WasInit(SDL_INIT_VIDEO))
         return M64ERR_NOT_INIT;
 
-	#ifdef PANDORA
-	return M64ERR_SUCCESS;
-	#else
+#ifdef PANDORA
+        return M64ERR_SUCCESS;
+#else
+
+    /* translate the GL context type mask if necessary */
+#if SDL_VERSION_ATLEAST(2,0,0)
+    if (Attr == M64P_GL_CONTEXT_PROFILE_MASK)
+    {
+        switch (Value)
+        {
+            case M64P_GL_CONTEXT_PROFILE_CORE:
+                Value = SDL_GL_CONTEXT_PROFILE_CORE;
+                break;
+            case M64P_GL_CONTEXT_PROFILE_COMPATIBILITY:
+                Value = SDL_GL_CONTEXT_PROFILE_COMPATIBILITY;
+                break;
+            case M64P_GL_CONTEXT_PROFILE_ES:
+                Value = SDL_GL_CONTEXT_PROFILE_ES;
+                break;
+            default:
+                Value = 0;
+        }
+    }
+#endif
+
     for (i = 0; i < mapSize; i++)
     {
         if (GLAttrMap[i].m64Attr == Attr)
@@ -539,7 +566,7 @@ EXPORT m64p_error CALL VidExt_GL_SetAttribute(m64p_GLattr Attr, int Value)
     }
 
     return M64ERR_INPUT_INVALID;
-    #endif
+#endif
 }
 
 EXPORT m64p_error CALL VidExt_GL_GetAttribute(m64p_GLattr Attr, int *pValue)
@@ -553,9 +580,9 @@ EXPORT m64p_error CALL VidExt_GL_GetAttribute(m64p_GLattr Attr, int *pValue)
     if (!SDL_WasInit(SDL_INIT_VIDEO))
         return M64ERR_NOT_INIT;
 
-	#ifdef PANDORA
-	return M64ERR_SUCCESS;
-	#else
+#ifdef PANDORA
+    return M64ERR_SUCCESS;
+#else
     for (i = 0; i < mapSize; i++)
     {
         if (GLAttrMap[i].m64Attr == Attr)
@@ -563,13 +590,33 @@ EXPORT m64p_error CALL VidExt_GL_GetAttribute(m64p_GLattr Attr, int *pValue)
             int NewValue = 0;
             if (SDL_GL_GetAttribute(GLAttrMap[i].sdlAttr, &NewValue) != 0)
                 return M64ERR_SYSTEM_FAIL;
+            /* translate the GL context type mask if necessary */
+#if SDL_VERSION_ATLEAST(2,0,0)
+            if (Attr == M64P_GL_CONTEXT_PROFILE_MASK)
+            {
+                switch (NewValue)
+                {
+                    case SDL_GL_CONTEXT_PROFILE_CORE:
+                        NewValue = M64P_GL_CONTEXT_PROFILE_CORE;
+                        break;
+                    case SDL_GL_CONTEXT_PROFILE_COMPATIBILITY:
+                        NewValue = M64P_GL_CONTEXT_PROFILE_COMPATIBILITY;
+                        break;
+                    case SDL_GL_CONTEXT_PROFILE_ES:
+                        NewValue = M64P_GL_CONTEXT_PROFILE_ES;
+                        break;
+                    default:
+                        NewValue = 0;
+                }
+            }
+#endif
             *pValue = NewValue;
             return M64ERR_SUCCESS;
         }
     }
 
     return M64ERR_INPUT_INVALID;
-    #endif
+#endif
 }
 
 EXPORT m64p_error CALL VidExt_GL_SwapBuffers(void)
@@ -580,15 +627,16 @@ EXPORT m64p_error CALL VidExt_GL_SwapBuffers(void)
 
     if (!SDL_WasInit(SDL_INIT_VIDEO))
         return M64ERR_NOT_INIT;
-	#ifdef PANDORA
-	#ifdef USE_EGL_SDL
-	EGL_SwapBuffers();
-	#else
-	eglSwapBuffers( eglDisplay, eglSurface );
-	#endif
-	#else
+
+#ifdef PANDORA
+#ifdef USE_EGL_SDL
+    EGL_SwapBuffers();
+#else
+    eglSwapBuffers( eglDisplay, eglSurface );
+#endif
+#else
     SDL_GL_SwapBuffers();
-	#endif
+#endif
     return M64ERR_SUCCESS;
 }
 

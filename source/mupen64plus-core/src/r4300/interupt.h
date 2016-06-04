@@ -19,16 +19,18 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-void compare_interupt(void);
-void gen_dp(void);
-void init_interupt(void);
+#ifndef M64P_R4300_INTERUPT_H
+#define M64P_R4300_INTERUPT_H
 
-extern int vi_field;
-extern unsigned int next_vi;
+#include <stdint.h>
+
+void init_interupt(void);
 
 // set to avoid savestates/reset if state may be inconsistent
 // (e.g. in the middle of an instruction)
 extern int interupt_unsafe_state;
+
+void raise_maskable_interrupt(uint32_t cause);
 
 void gen_interupt(void);
 void check_interupt(void);
@@ -54,4 +56,6 @@ void load_eventqueue_infos(char *buf);
 #define DP_INT      0x100
 #define HW2_INT     0x200
 #define NMI_INT     0x400
+#define CART_INT    0x800
 
+#endif /* M64P_R4300_INTERUPT_H */

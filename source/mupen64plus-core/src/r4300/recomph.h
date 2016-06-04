@@ -19,27 +19,21 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef RECOMPH_H
-#define RECOMPH_H
+#ifndef M64P_R4300_RECOMPH_H
+#define M64P_R4300_RECOMPH_H
 
 #include "recomp.h"
-
-#if defined(COUNT_INSTR)
-extern unsigned int instr_count[132];
-extern unsigned int instr_type[131];
-extern char instr_name[][10];
-extern char instr_typename[][20];
-#endif
 
 extern int code_length;
 extern int max_code_length;
 extern unsigned char **inst_pointer;
 extern precomp_block* dst_block;
 extern int fast_memory;
-extern int src;   /* opcode of r4300 instruction being recompiled */
+extern uint32_t src;   /* opcode of r4300 instruction being recompiled */
 
 #if defined(PROFILE_R4300)
   #include <stdio.h>
+
   extern FILE *pfProfile;
 #endif
 
@@ -47,7 +41,7 @@ void passe2(precomp_instr *dest, int start, int end, precomp_block* block);
 void init_assembler(void *block_jumps_table, int block_jumps_number, void *block_riprel_table, int block_riprel_number);
 void free_assembler(void **block_jumps_table, int *block_jumps_number, void **block_riprel_table, int *block_riprel_number);
 
-void gencallinterp(unsigned long addr, int jump);
+void gencallinterp(uintptr_t addr, int jump);
 
 void genupdate_system(int type);
 void genbnel(void);
@@ -304,5 +298,5 @@ void genll(void);
 void gendebug(void);
 #endif
 
-#endif
+#endif /* M64P_R4300_RECOMPH_H */
 

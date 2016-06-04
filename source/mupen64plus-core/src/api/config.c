@@ -23,18 +23,17 @@
  * outside of the core library.
  */
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define M64P_CORE_PROTOTYPES 1
-#include "m64p_types.h"
-#include "m64p_config.h"
-#include "config.h"
 #include "callbacks.h"
-
+#include "config.h"
+#include "m64p_config.h"
+#include "m64p_types.h"
 #include "main/util.h"
-
 #include "osal/files.h"
 #include "osal/preproc.h"
 
@@ -56,7 +55,7 @@ typedef struct _config_var {
   } config_var;
 
 typedef struct _config_section {
-  int                     magic;
+  unsigned int            magic;
   char                   *name;
   struct _config_var     *first_var;
   struct _config_section *next;
@@ -132,9 +131,13 @@ static config_section *find_section(config_list list, const char *ParamName)
 
 static config_var *config_var_create(const char *ParamName, const char *ParamHelp)
 {
-    config_var *var = (config_var *) malloc(sizeof(config_var));
+    config_var *var;
 
-    if (var == NULL || ParamName == NULL)
+    if (ParamName == NULL)
+        return NULL;
+
+    var = (config_var *) malloc(sizeof(config_var));
+    if (var == NULL)
         return NULL;
 
     memset(var, 0, sizeof(config_var));
@@ -311,6 +314,7 @@ static config_section * section_deepcopy(config_section *orig_section)
                     if (new_var->val.string == NULL)
                     {
                         delete_section(new_section);
+                        delete_var(new_var);
                         return NULL;
                     }
                 }
@@ -423,7 +427,8 @@ m64p_error ConfigInit(const char *ConfigDirOverride, const char *DataDirOverride
     m64p_error rval;
     const char *configpath = NULL;
     char *filepath;
-    long filelen;
+    long ftell_result;
+    size_t filelen;
     FILE *fPtr;
     char *configtext;
 
@@ -470,9 +475,23 @@ m64p_error ConfigInit(const char *ConfigDirOverride, const char *DataDirOverride
     free(filepath);
 
     /* read the entire config file */
-    fseek(fPtr, 0L, SEEK_END);
-    filelen = ftell(fPtr);
-    fseek(fPtr, 0L, SEEK_SET);
+    if (fseek(fPtr, 0L, SEEK_END) != 0)
+    {
+        fclose(fPtr);
+        return M64ERR_FILES;
+    }
+    ftell_result = ftell(fPtr);
+    if (ftell_result == -1)
+    {
+        fclose(fPtr);
+        return M64ERR_FILES;
+    }
+    filelen = (size_t)ftell_result;
+    if (fseek(fPtr, 0L, SEEK_SET) != 0)
+    {
+        fclose(fPtr);
+        return M64ERR_FILES;
+    }
 
     configtext = (char *) malloc(filelen + 1);
     if (configtext == NULL)
@@ -965,6 +984,34 @@ EXPORT m64p_error CALL ConfigSetParameter(m64p_handle ConfigSectionHandle, const
     return M64ERR_SUCCESS;
 }
 
+EXPORT m64p_error CALL ConfigSetParameterHelp(m64p_handle ConfigSectionHandle, const char *ParamName, const char *ParamHelp)
+{
+    config_section *section;
+    config_var *var;
+
+    /* check input conditions */
+    if (!l_ConfigInit)
+        return M64ERR_NOT_INIT;
+    if (ConfigSectionHandle == NULL || ParamName == NULL || ParamHelp == NULL)
+        return M64ERR_INPUT_ASSERT;
+
+    section = (config_section *) ConfigSectionHandle;
+    if (section->magic != SECTION_MAGIC)
+        return M64ERR_INPUT_INVALID;
+
+    /* if this parameter doesn't already exist, return an error */
+    var = find_section_var(section, ParamName);
+    if (var == NULL)
+        return M64ERR_INPUT_NOT_FOUND;
+
+    if (var->comment != NULL)
+        free(var->comment);
+
+    var->comment = strdup(ParamHelp);
+
+    return M64ERR_SUCCESS;
+}
+
 EXPORT m64p_error CALL ConfigGetParameter(m64p_handle ConfigSectionHandle, const char *ParamName, m64p_type ParamType, void *ParamValue, int MaxSize)
 {
     config_section *section;
@@ -1242,8 +1289,6 @@ EXPORT int CALL ConfigGetParamInt(m64p_handle ConfigSectionHandle, const char *P
             DebugMessage(M64MSG_ERROR, "ConfigGetParamInt(): invalid internal parameter type for '%s'", ParamName);
             return 0;
     }
-
-    return 0;
 }
 
 EXPORT float CALL ConfigGetParamFloat(m64p_handle ConfigSectionHandle, const char *ParamName)
@@ -1288,8 +1333,6 @@ EXPORT float CALL ConfigGetParamFloat(m64p_handle ConfigSectionHandle, const cha
             DebugMessage(M64MSG_ERROR, "ConfigGetParamFloat(): invalid internal parameter type for '%s'", ParamName);
             return 0.0;
     }
-
-    return 0.0;
 }
 
 EXPORT int CALL ConfigGetParamBool(m64p_handle ConfigSectionHandle, const char *ParamName)
@@ -1334,8 +1377,6 @@ EXPORT int CALL ConfigGetParamBool(m64p_handle ConfigSectionHandle, const char *
             DebugMessage(M64MSG_ERROR, "ConfigGetParamBool(): invalid internal parameter type for '%s'", ParamName);
             return 0;
     }
-
-    return 0;
 }
 
 EXPORT const char * CALL ConfigGetParamString(m64p_handle ConfigSectionHandle, const char *ParamName)
@@ -1385,8 +1426,6 @@ EXPORT const char * CALL ConfigGetParamString(m64p_handle ConfigSectionHandle, c
             DebugMessage(M64MSG_ERROR, "ConfigGetParamString(): invalid internal parameter type for '%s'", ParamName);
             return "";
     }
-
-  return "";
 }
 
 /* ------------------------------------------------------ */

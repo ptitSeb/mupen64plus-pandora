@@ -19,46 +19,48 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "api/m64p_types.h"
 #include "api/callbacks.h"
-#include "memory/memory.h"
-
+#include "api/m64p_types.h"
+#include "cp0_private.h"
 #include "exception.h"
+#include "memory/memory.h"
 #include "r4300.h"
-#include "macros.h"
+#include "r4300_core.h"
+#include "recomp.h"
 #include "recomph.h"
+#include "tlb.h"
 
-void TLB_refill_exception(unsigned int address, int w)
+void TLB_refill_exception(uint32_t address, int w)
 {
    int usual_handler = 0, i;
 
-   if (r4300emu != CORE_DYNAREC && w != 2) update_count();
-   if (w == 1) Cause = (3 << 2);
-   else Cause = (2 << 2);
-   BadVAddr = address;
-   Context = (Context & 0xFF80000F) | ((address >> 9) & 0x007FFFF0);
-   EntryHi = address & 0xFFFFE000;
-   if (Status & 0x2) // Test de EXL
+   if (r4300emu != CORE_DYNAREC && w != 2) cp0_update_count();
+   if (w == 1) g_cp0_regs[CP0_CAUSE_REG] = (UINT32_C(3) << 2);
+   else g_cp0_regs[CP0_CAUSE_REG] = (UINT32_C(2) << 2);
+   g_cp0_regs[CP0_BADVADDR_REG] = address;
+   g_cp0_regs[CP0_CONTEXT_REG] = (g_cp0_regs[CP0_CONTEXT_REG] & UINT32_C(0xFF80000F)) | ((address >> 9) & UINT32_C(0x007FFFF0));
+   g_cp0_regs[CP0_ENTRYHI_REG] = address & UINT32_C(0xFFFFE000);
+   if (g_cp0_regs[CP0_STATUS_REG] & UINT32_C(0x2)) // Test de EXL
      {
-    generic_jump_to(0x80000180);
-    if(delay_slot==1 || delay_slot==3) Cause |= 0x80000000;
-    else Cause &= 0x7FFFFFFF;
+    generic_jump_to(UINT32_C(0x80000180));
+    if(delay_slot==1 || delay_slot==3) g_cp0_regs[CP0_CAUSE_REG] |= UINT32_C(0x80000000);
+    else g_cp0_regs[CP0_CAUSE_REG] &= UINT32_C(0x7FFFFFFF);
      }
    else
      {
     if (r4300emu != CORE_PURE_INTERPRETER) 
       {
          if (w!=2)
-           EPC = PC->addr;
+           g_cp0_regs[CP0_EPC_REG] = PC->addr;
          else
-           EPC = address;
+           g_cp0_regs[CP0_EPC_REG] = address;
       }
-    else EPC = PC->addr;
+    else g_cp0_regs[CP0_EPC_REG] = PC->addr;
          
-    Cause &= ~0x80000000;
-    Status |= 0x2; //EXL=1
+    g_cp0_regs[CP0_CAUSE_REG] &= ~UINT32_C(0x80000000);
+    g_cp0_regs[CP0_STATUS_REG] |= UINT32_C(0x2); //EXL=1
     
-    if (address >= 0x80000000 && address < 0xc0000000)
+    if (address >= UINT32_C(0x80000000) && address < UINT32_C(0xc0000000))
       usual_handler = 1;
     for (i=0; i<32; i++)
       {
@@ -71,23 +73,23 @@ void TLB_refill_exception(unsigned int address, int w)
       }
     if (usual_handler)
       {
-         generic_jump_to(0x80000180);
+         generic_jump_to(UINT32_C(0x80000180));
       }
     else
       {
-         generic_jump_to(0x80000000);
+         generic_jump_to(UINT32_C(0x80000000));
       }
      }
    if(delay_slot==1 || delay_slot==3)
      {
-    Cause |= 0x80000000;
-    EPC-=4;
+    g_cp0_regs[CP0_CAUSE_REG] |= UINT32_C(0x80000000);
+    g_cp0_regs[CP0_EPC_REG]-=4;
      }
    else
      {
-    Cause &= 0x7FFFFFFF;
+    g_cp0_regs[CP0_CAUSE_REG] &= UINT32_C(0x7FFFFFFF);
      }
-   if(w != 2) EPC-=4;
+   if(w != 2) g_cp0_regs[CP0_EPC_REG]-=4;
    
    last_addr = PC->addr;
    
@@ -110,21 +112,21 @@ void TLB_refill_exception(unsigned int address, int w)
 
 void exception_general(void)
 {
-   update_count();
-   Status |= 2;
+   cp0_update_count();
+   g_cp0_regs[CP0_STATUS_REG] |= 2;
    
-   EPC = PC->addr;
+   g_cp0_regs[CP0_EPC_REG] = PC->addr;
    
    if(delay_slot==1 || delay_slot==3)
      {
-    Cause |= 0x80000000;
-    EPC-=4;
+    g_cp0_regs[CP0_CAUSE_REG] |= UINT32_C(0x80000000);
+    g_cp0_regs[CP0_EPC_REG]-=4;
      }
    else
      {
-    Cause &= 0x7FFFFFFF;
+    g_cp0_regs[CP0_CAUSE_REG] &= UINT32_C(0x7FFFFFFF);
      }
-   generic_jump_to(0x80000180);
+   generic_jump_to(UINT32_C(0x80000180));
    last_addr = PC->addr;
    if (r4300emu == CORE_DYNAREC)
      {

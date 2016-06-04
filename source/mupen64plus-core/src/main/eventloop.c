@@ -20,8 +20,10 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <stdlib.h>
 #include <SDL.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #if ! SDL_VERSION_ATLEAST(1,3,0)
 
 #define SDL_SCANCODE_ESCAPE SDLK_ESCAPE
@@ -50,22 +52,26 @@
 #define SDL_SCANCODE_7 SDLK_7
 #define SDL_SCANCODE_8 SDLK_8
 #define SDL_SCANCODE_9 SDLK_9
+#define SDL_SCANCODE_UNKNOWN SDLK_UNKNOWN
 
 #define SDL_SetEventFilter(func, data) SDL_SetEventFilter(func)
 #define event_sdl_filter(userdata, event) event_sdl_filter(const event)
 
+#else
+	 SDL_JoystickID l_iJoyInstanceID[10];
 #endif
 
 #define M64P_CORE_PROTOTYPES 1
-#include "main.h"
-#include "eventloop.h"
-#include "util.h"
 #include "api/callbacks.h"
 #include "api/config.h"
 #include "api/m64p_config.h"
+#include "api/m64p_types.h"
+#include "eventloop.h"
+#include "main.h"
 #include "plugin/plugin.h"
-#include "r4300/interupt.h"
 #include "r4300/reset.h"
+#include "sdl_key_converter.h"
+#include "util.h"
 
 /* version number for CoreEvents config section */
 #define CONFIG_PARAM_VERSION 1.00
@@ -122,7 +128,8 @@ static const char *JoyCmdName[] = { "Joy Mapping Fullscreen",
 
 static const int NumJoyCommands = sizeof(JoyCmdName) / sizeof(const char *);
 
-static int JoyCmdActive[16];  /* if extra joystick commands are added above, make sure there is enough room in this array */
+static int JoyCmdActive[16][2];  /* if extra joystick commands are added above, make sure there is enough room in this array */
+                                 /* [i][0] is Command Active, [i][1] is Hotkey Active */
 
 static int GamesharkActive = 0;
 
@@ -140,101 +147,143 @@ static int GamesharkActive = 0;
  */
 static int MatchJoyCommand(const SDL_Event *event, eJoyCommand cmd)
 {
-    const char *event_str = ConfigGetParamString(l_CoreEventsConfig, JoyCmdName[cmd]);
+    const char *multi_event_str = ConfigGetParamString(l_CoreEventsConfig, JoyCmdName[cmd]);
+    const int orig_cmd_value = (JoyCmdActive[cmd][1] << 1) | JoyCmdActive[cmd][0];
     int dev_number, input_number, input_value;
     char axis_direction;
 
     /* Empty string or non-joystick command */
-    if (event_str == NULL || strlen(event_str) < 4 || event_str[0] != 'J')
+    if (multi_event_str == NULL || strlen(multi_event_str) < 4 || multi_event_str[0] != 'J')
         return 0;
 
-    /* Evaluate event based on type of joystick input expected by the given command */
-    switch (event_str[2])
+    /* Make copy of the event config string that we can hack it up with strtok */
+    char tokenized_event_str[128];
+    strncpy(tokenized_event_str, multi_event_str, 127);
+    tokenized_event_str[127] = '\0';
+    
+    /* Iterate over comma-separated config phrases */
+    char *phrase_str = strtok(tokenized_event_str, ",");
+    while (phrase_str != NULL)
     {
-        /* Axis */
-        case 'A':
-            if (event->type != SDL_JOYAXISMOTION)
-                return 0;
-            if (sscanf(event_str, "J%dA%d%c", &dev_number, &input_number, &axis_direction) != 3)
-                return 0;
-            if (dev_number != event->jaxis.which || input_number != event->jaxis.axis)
-                return 0;
-            if (axis_direction == '+')
-            {
-                if (event->jaxis.value >= 15000 && JoyCmdActive[cmd] == 0)
-                {
-                    JoyCmdActive[cmd] = 1;
-                    return 1;
-                }
-                else if (event->jaxis.value <= 8000 && JoyCmdActive[cmd] == 1)
-                {
-                    JoyCmdActive[cmd] = 0;
-                    return -1;
-                }
-                return 0;
-            }
-            else if (axis_direction == '-')
-            {
-                if (event->jaxis.value <= -15000 && JoyCmdActive[cmd] == 0)
-                {
-                    JoyCmdActive[cmd] = 1;
-                    return 1;
-                }
-                else if (event->jaxis.value >= -8000 && JoyCmdActive[cmd] == 1)
-                {
-                    JoyCmdActive[cmd] = 0;
-                    return -1;
-                }
-                return 0;
-            }
-            else return 0; /* invalid axis direction in configuration parameter */
-            break;
-        /* Hat */
-        case 'H':
-            if (event->type != SDL_JOYHATMOTION)
-                return 0;
-            if (sscanf(event_str, "J%dH%dV%d", &dev_number, &input_number, &input_value) != 3)
-                return 0;
-            if (dev_number != event->jhat.which || input_number != event->jhat.hat)
-                return 0;
-            if ((event->jhat.value & input_value) == input_value && JoyCmdActive[cmd] == 0)
-            {
-                JoyCmdActive[cmd] = 1;
-                return 1;
-            }
-            else if ((event->jhat.value & input_value) != input_value  && JoyCmdActive[cmd] == 1)
-            {
-                JoyCmdActive[cmd] = 0;
-                return -1;
-            }
-            return 0;
-            break;
-        /* Button. */
-        case 'B':
-            if (event->type != SDL_JOYBUTTONDOWN && event->type != SDL_JOYBUTTONUP)
-                return 0;
-            if (sscanf(event_str, "J%dB%d", &dev_number, &input_number) != 2)
-                return 0;
-            if (dev_number != event->jbutton.which || input_number != event->jbutton.button)
-                return 0;
-            if (event->type == SDL_JOYBUTTONDOWN && JoyCmdActive[cmd] == 0)
-            {
-                JoyCmdActive[cmd] = 1;
-                return 1;
-            }
-            else if (event->type == SDL_JOYBUTTONUP && JoyCmdActive[cmd] == 1)
-            {
-                JoyCmdActive[cmd] = 0;
-                return -1;
-            }
-            return 0;
-            break;
-        default:
-            /* bad configuration parameter */
-            return 0;
-    }
+        int iHotkey, has_hotkey = 0;
+        
+        /* Check for invalid phrase */
+        if (strlen(phrase_str) < 4 || phrase_str[0] != 'J')
+        {
+            phrase_str = strtok(NULL, ",");
+            continue;
+        }
+        
+        /* Get device (joystick) number */
+        if (phrase_str[1] == '*')
+        {
+            dev_number = -1;
+        }
+        else if (phrase_str[1] >= '0' && phrase_str[1] <= '9')
+        {
+            dev_number = phrase_str[1] - '0';
+#if SDL_VERSION_ATLEAST(2,0,0)
+            dev_number = l_iJoyInstanceID[dev_number];
+#endif
+        }
+        else
+        {
+            phrase_str = strtok(NULL, ",");
+            continue;
+        }
 
-    /* impossible to reach this point */
+        /* Iterate over JoyAction/JoyHotkey action fields */
+        for (iHotkey = 0; iHotkey < 2; iHotkey++)
+        {
+            const char *action_str = NULL;
+            if (iHotkey == 0)
+            {
+                action_str = phrase_str + 2;
+            }
+            else
+            {
+                char *hotkey_str = strchr(phrase_str, '/');
+                if (hotkey_str == NULL || strlen(hotkey_str) < 3)
+                {
+                    break;
+                }
+                action_str = hotkey_str+1;
+                has_hotkey = 1;
+            }
+
+            /* Evaluate action based on type of joystick input expected */
+            switch (action_str[0])
+            {
+                /* Axis */
+                case 'A':
+                    if (event->type != SDL_JOYAXISMOTION)
+                        break;
+                    if (sscanf(action_str, "A%d%c", &input_number, &axis_direction) != 2)
+                        break;
+                    if ((dev_number != 1 && dev_number != event->jaxis.which) || input_number != event->jaxis.axis)
+                        break;
+                    if (axis_direction == '+')
+                    {
+                        if (event->jaxis.value >= 15000)
+                            JoyCmdActive[cmd][iHotkey] = 1;
+                        else if (event->jaxis.value <= 8000)
+                            JoyCmdActive[cmd][iHotkey] = 0;
+                        break;
+                    }
+                    else if (axis_direction == '-')
+                    {
+                        if (event->jaxis.value <= -15000)
+                            JoyCmdActive[cmd][iHotkey] = 1;
+                        else if (event->jaxis.value >= -8000)
+                            JoyCmdActive[cmd][iHotkey] = 0;
+                        break;
+                    }
+                    break;
+                /* Hat */
+                case 'H':
+                    if (event->type != SDL_JOYHATMOTION)
+                        break;
+                    if (sscanf(action_str, "H%dV%d", &input_number, &input_value) != 2)
+                        break;
+                    if ((dev_number != -1 && dev_number != event->jhat.which) || input_number != event->jhat.hat)
+                        break;
+                    if ((event->jhat.value & input_value) == input_value)
+                        JoyCmdActive[cmd][iHotkey] = 1;
+                    else if ((event->jhat.value & input_value) != input_value)
+                        JoyCmdActive[cmd][iHotkey] = 0;
+                    break;
+                /* Button. */
+                case 'B':
+                    if (event->type != SDL_JOYBUTTONDOWN && event->type != SDL_JOYBUTTONUP)
+                        break;
+                    if (sscanf(action_str, "B%d", &input_number) != 1)
+                        break;
+                    if ((dev_number != -1 && dev_number != event->jbutton.which) || input_number != event->jbutton.button)
+                        break;
+                    if (event->type == SDL_JOYBUTTONDOWN)
+                        JoyCmdActive[cmd][iHotkey] = 1;
+                    else if (event->type == SDL_JOYBUTTONUP)
+                        JoyCmdActive[cmd][iHotkey] = 0;
+                    break;
+                default:
+                    /* bad configuration parameter */
+                    break;
+            }
+        } /* Iterate over JoyAction/JoyHotkey action fields */
+        
+        /* Detect changes in command activation status */
+        const int new_cmd_value = (JoyCmdActive[cmd][1] << 1) | JoyCmdActive[cmd][0];
+        const int active_mask = has_hotkey ? 3 : 1;
+        if ((orig_cmd_value & active_mask) != active_mask && (new_cmd_value & active_mask) == active_mask)
+            return 1;
+        if ((orig_cmd_value & active_mask) == active_mask && (new_cmd_value & active_mask) != active_mask)
+            return -1;
+
+        /* get next comma-separated command phrase from event string */
+        phrase_str = strtok(NULL, ",");
+    } /* Iterate over comma-separated config phrases */
+
+    /* nothing found */
     return 0;
 }
 
@@ -338,7 +387,7 @@ static int SDLCALL event_sdl_filter(void *userdata, SDL_Event *event)
             break;
     }
 
-    return 1;
+    return 1;  // add this event to SDL queue
 }
 
 /*********************************************************************************************************
@@ -347,28 +396,70 @@ static int SDLCALL event_sdl_filter(void *userdata, SDL_Event *event)
 
 void event_initialize(void)
 {
-    const char *event_str = NULL;
-    int i;
+    int i, j;
 
     /* set initial state of all joystick commands to 'off' */
     for (i = 0; i < NumJoyCommands; i++)
-        JoyCmdActive[i] = 0;
+        for (j = 0; j < 2; j++)
+            JoyCmdActive[i][j] = 0;
 
     /* activate any joysticks which are referenced in the joystick event command strings */
-    for (i = 0; i < NumJoyCommands; i++)
+    const int NumJoysticks = SDL_NumJoysticks();
+    if (NumJoysticks > 0)
     {
-        event_str = ConfigGetParamString(l_CoreEventsConfig, JoyCmdName[i]);
-        if (event_str != NULL && strlen(event_str) >= 4 && event_str[0] == 'J' && event_str[1] >= '0' && event_str[1] <= '9')
+        for (i = 0; i < NumJoyCommands; i++)
         {
-            int device = event_str[1] - '0';
-            if (!SDL_WasInit(SDL_INIT_JOYSTICK))
-                SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+            const char *multi_event_str = ConfigGetParamString(l_CoreEventsConfig, JoyCmdName[i]);
+            /* Empty string or invalid command */
+            if (multi_event_str == NULL || strlen(multi_event_str) < 4 || multi_event_str[0] != 'J')
+                continue;
+            /* Make copy of the event config string that we can hack it up with strtok */
+            char tokenized_event_str[128];
+            strncpy(tokenized_event_str, multi_event_str, 127);
+            tokenized_event_str[127] = '\0';
+            /* Iterate over comma-separated config phrases */
+            char *phrase_str = strtok(tokenized_event_str, ",");
+            while (phrase_str != NULL)
+            {
+                /* Check for invalid phrase */
+                if (strlen(phrase_str) < 4 || phrase_str[0] != 'J')
+                {
+                    phrase_str = strtok(NULL, ",");
+                    continue;
+                }
+                /* Get device (joystick) number(s) to initialize */
+                int joy_min, joy_max;
+                if (phrase_str[1] == '*')
+                {
+                    joy_min = 0;
+                    joy_max = NumJoysticks;
+                }
+                else if (phrase_str[1] >= '0' && phrase_str[1] <= '9')
+                {
+                    joy_min = joy_max = phrase_str[1] - '0';
+                }
+                else
+                {
+                    phrase_str = strtok(NULL, ",");
+                    continue;
+                }
+                /* initialize them */
+                int device;
+                for (device = joy_min; device <= joy_max; device++)
+                {
+                    if (!SDL_WasInit(SDL_INIT_JOYSTICK))
+                        SDL_InitSubSystem(SDL_INIT_JOYSTICK);
 #if SDL_VERSION_ATLEAST(2,0,0)
-            SDL_JoystickOpen(device);
+                    SDL_Joystick *thisJoy = SDL_JoystickOpen(device);
+			        l_iJoyInstanceID[device] = SDL_JoystickInstanceID(thisJoy);
 #else
-            if (!SDL_JoystickOpened(device))
-                SDL_JoystickOpen(device);
+                    if (!SDL_JoystickOpened(device))
+                        SDL_JoystickOpen(device);
 #endif
+                }
+                
+                phrase_str = strtok(NULL, ",");
+            } /* Iterate over comma-separated config phrases */
         }
     }
 
@@ -415,22 +506,22 @@ int event_set_core_defaults(void)
 
     ConfigSetDefaultFloat(l_CoreEventsConfig, "Version", CONFIG_PARAM_VERSION,  "Mupen64Plus CoreEvents config parameter set version number.  Please don't change this version number.");
     /* Keyboard presses mapped to core functions */
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdStop, SDL_SCANCODE_ESCAPE,          "SDL keysym for stopping the emulator");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdFullscreen, SDL_NUM_SCANCODES,      "SDL keysym for switching between fullscreen/windowed modes");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdSave, SDL_SCANCODE_F5,              "SDL keysym for saving the emulator state");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdLoad, SDL_SCANCODE_F7,              "SDL keysym for loading the emulator state");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdIncrement, 0,                       "SDL keysym for advancing the save state slot");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdReset, SDL_SCANCODE_F9,             "SDL keysym for resetting the emulator");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdSpeeddown, SDL_SCANCODE_F10,        "SDL keysym for slowing down the emulator");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdSpeedup, SDL_SCANCODE_F11,          "SDL keysym for speeding up the emulator");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdScreenshot, SDL_SCANCODE_F12,       "SDL keysym for taking a screenshot");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdPause, SDL_SCANCODE_P,              "SDL keysym for pausing the emulator");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdMute, SDL_SCANCODE_M,               "SDL keysym for muting/unmuting the sound");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdIncrease, SDL_SCANCODE_RIGHTBRACKET,"SDL keysym for increasing the volume");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdDecrease, SDL_SCANCODE_LEFTBRACKET, "SDL keysym for decreasing the volume");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdForward, SDL_SCANCODE_F,            "SDL keysym for temporarily going really fast");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdAdvance, SDL_SCANCODE_SLASH,        "SDL keysym for advancing by one frame when paused");
-    ConfigSetDefaultInt(l_CoreEventsConfig, kbdGameshark, SDL_SCANCODE_G,          "SDL keysym for pressing the game shark button");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdStop, sdl_native2keysym(SDL_SCANCODE_ESCAPE),          "SDL keysym for stopping the emulator");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdFullscreen, sdl_native2keysym(SDL_NUM_SCANCODES),      "SDL keysym for switching between fullscreen/windowed modes");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdSave, sdl_native2keysym(SDL_SCANCODE_F5),              "SDL keysym for saving the emulator state");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdLoad, sdl_native2keysym(SDL_SCANCODE_F7),              "SDL keysym for loading the emulator state");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdIncrement, sdl_native2keysym(SDL_SCANCODE_UNKNOWN),    "SDL keysym for advancing the save state slot");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdReset, sdl_native2keysym(SDL_SCANCODE_F9),             "SDL keysym for resetting the emulator");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdSpeeddown, sdl_native2keysym(SDL_SCANCODE_F10),        "SDL keysym for slowing down the emulator");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdSpeedup, sdl_native2keysym(SDL_SCANCODE_F11),          "SDL keysym for speeding up the emulator");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdScreenshot, sdl_native2keysym(SDL_SCANCODE_F12),       "SDL keysym for taking a screenshot");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdPause, sdl_native2keysym(SDL_SCANCODE_P),              "SDL keysym for pausing the emulator");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdMute, sdl_native2keysym(SDL_SCANCODE_M),               "SDL keysym for muting/unmuting the sound");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdIncrease, sdl_native2keysym(SDL_SCANCODE_RIGHTBRACKET),"SDL keysym for increasing the volume");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdDecrease, sdl_native2keysym(SDL_SCANCODE_LEFTBRACKET), "SDL keysym for decreasing the volume");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdForward, sdl_native2keysym(SDL_SCANCODE_F),            "SDL keysym for temporarily going really fast");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdAdvance, sdl_native2keysym(SDL_SCANCODE_SLASH),        "SDL keysym for advancing by one frame when paused");
+    ConfigSetDefaultInt(l_CoreEventsConfig, kbdGameshark, sdl_native2keysym(SDL_SCANCODE_G),          "SDL keysym for pressing the game shark button");
     /* Joystick events mapped to core functions */
     ConfigSetDefaultString(l_CoreEventsConfig, JoyCmdName[joyStop], "",       "Joystick event string for stopping the emulator");
     ConfigSetDefaultString(l_CoreEventsConfig, JoyCmdName[joyFullscreen], "", "Joystick event string for switching between fullscreen/windowed modes");
@@ -493,37 +584,37 @@ void event_sdl_keydown(int keysym, int keymod)
     else if ((slot = get_saveslot_from_keysym(keysym)) >= 0)
         main_state_set_slot(slot);
     /* check all of the configurable commands */
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdStop))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdStop)))
         main_stop();
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdFullscreen))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdFullscreen)))
         gfx.changeWindow();
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdSave))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdSave)))
         main_state_save(0, NULL); /* save in mupen64plus format using current slot */
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdLoad))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdLoad)))
         main_state_load(NULL); /* load using current slot */
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdIncrement))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdIncrement)))
         main_state_inc_slot();
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdReset))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdReset)))
         reset_soft();
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdSpeeddown))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdSpeeddown)))
         main_speeddown(5);
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdSpeedup))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdSpeedup)))
         main_speedup(5);
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdScreenshot))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdScreenshot)))
         main_take_next_screenshot();    /* screenshot will be taken at the end of frame rendering */
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdPause))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdPause)))
         main_toggle_pause();
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdMute))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdMute)))
         main_volume_mute();
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdIncrease))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdIncrease)))
         main_volume_up();
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdDecrease))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdDecrease)))
         main_volume_down();
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdForward))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdForward)))
         main_set_fastforward(1);
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdAdvance))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdAdvance)))
         main_advance_one();
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdGameshark))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdGameshark)))
         event_set_gameshark(1);
     else
     {
@@ -535,15 +626,15 @@ void event_sdl_keydown(int keysym, int keymod)
 
 void event_sdl_keyup(int keysym, int keymod)
 {
-    if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdStop))
+    if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdStop)))
     {
         return;
     }
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdForward))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdForward)))
     {
         main_set_fastforward(0);
     }
-    else if (keysym == ConfigGetParamInt(l_CoreEventsConfig, kbdGameshark))
+    else if (keysym == sdl_keysym2native(ConfigGetParamInt(l_CoreEventsConfig, kbdGameshark)))
     {
         event_set_gameshark(0);
     }

@@ -23,13 +23,13 @@
  * front-end application
  */
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdarg.h>
-#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include "m64p_types.h"
+#include "api/m64p_frontend.h"
 #include "callbacks.h"
+#include "m64p_types.h"
 
 /* local variables */
 static ptr_DebugCallback pDebugFunc = NULL;
@@ -37,14 +37,7 @@ static ptr_StateCallback pStateFunc = NULL;
 static void *            DebugContext = NULL;
 static void *            StateContext = NULL;
 
-#if defined(DEBUG_MSG_TO_LOGFILE)
-time_t rawtime;
-struct tm * timeinfo;
-char buffer[10];
-extern FILE *pDebugFile;
-#endif
- 
- /* global Functions for use by the Core */
+/* global Functions for use by the Core */
 m64p_error SetDebugCallback(ptr_DebugCallback pFunc, void *Context)
 {
     pDebugFunc = pFunc;
@@ -67,34 +60,12 @@ void DebugMessage(int level, const char *message, ...)
   if (pDebugFunc == NULL)
       return;
 
-#if defined(DEBUG_MSG_TO_LOGFILE)
-  if(pDebugFile != NULL)
-  {
-   time (&rawtime);
-   timeinfo = (struct tm *)localtime (&rawtime);
-   strftime (buffer,10,"%H:%M:%S",timeinfo);
-      fprintf (pDebugFile, "%s: ", buffer);
-  }
-#endif
-
   va_start(args, message);
   vsprintf(msgbuf, message, args);
-
-#if defined(DEBUG_MSG_TO_LOGFILE)
-  if(pDebugFile != NULL)
-    vfprintf(pDebugFile,message,args);
-#endif
 
   (*pDebugFunc)(DebugContext, level, msgbuf);
 
   va_end(args);
-#if defined(DEBUG_MSG_TO_LOGFILE)
-  if(pDebugFile != NULL)
-  {
-    fprintf (pDebugFile, "\n");
-    fflush(pDebugFile);
-  }
-#endif
 }
 
 void StateChanged(m64p_core_param param_type, int new_value)
