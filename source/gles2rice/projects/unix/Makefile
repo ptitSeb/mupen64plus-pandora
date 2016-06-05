@@ -217,7 +217,7 @@ ifeq ($(origin GL_CFLAGS) $(origin GL_LDLIBS), undefined undefined)
   endif
 #  GL_CFLAGS += $(shell $(PKG_CONFIG) --cflags gl)
 #  GL_LDLIBS +=  $(shell $(PKG_CONFIG) --libs gl)
-  GL_CFLAGS += -I/mnt/utmp/codeblocks/usr/include/GLES2
+  GL_CFLAGS += -I/mnt/utmp/codeblocks/usr/include/GLES2 -DUSE_GLES
   GL_LDLIBS += -lGLESv2 -lrt
 endif
 CFLAGS += $(GL_CFLAGS)
