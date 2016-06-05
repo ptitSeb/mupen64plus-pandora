@@ -245,7 +245,9 @@ int8_t CSelector::OpenResources( void )
     old_line[MODE_SELECT_ENTRY].absolute = Config.LastIndex;
     old_line[MODE_SELECT_ENTRY].first = Config.LastFirst;
     old_line[MODE_SELECT_ENTRY].relative = Config.LastIndex - Config.LastFirst;
-
+    old_line[MODE_SELECT_ENTRY].last = old_line[MODE_SELECT_ENTRY].first + (Config.MaxEntries-1);
+    if (old_line[MODE_SELECT_ENTRY].last>old_line[MODE_SELECT_ENTRY].total)
+        old_line[MODE_SELECT_ENTRY].last = old_line[MODE_SELECT_ENTRY].total;
 
     Log( "Loading ziplist.\n" );
     if (Config.UseZipSupport == true && Profile.Minizip.LoadUnzipList( ZipListPath ))
@@ -819,7 +821,6 @@ int8_t CSelector::DisplaySelector( void )
             ApplyImage( Mouse.x, Mouse.y, ImagePointer, Screen, NULL );
         }
     }
-
     return 0;
 }
 
@@ -1382,7 +1383,6 @@ int8_t CSelector::DrawNames( SDL_Rect& location )
             if (entry_index == DisplayList.at(Mode).relative)
             {
                 ApplyImage( location.x, location.y,  ImageSelectPointer, Screen, NULL );
-
                 // Reset scroll settings
                 if (entry_index != LastSelectedEntry)
                 {
