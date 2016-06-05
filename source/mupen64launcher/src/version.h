@@ -26,6 +26,6 @@
 #define APPVERSION      "v0.22"             /**< The current version. */
 #define APPNAME         "Mupen64Launcher, based on PickleLauncher"    /**< Application name. */
 #define APPAUTHOR       "Scott Smith, ptitSeb"       /**< Application author. */
-#define APPCOPYRIGHT    "(c) 2010-2014"     /**< Copyright year. */
+#define APPCOPYRIGHT    "(c) 2010-2016"     /**< Copyright year. */
 
 #endif // VERSION_H
