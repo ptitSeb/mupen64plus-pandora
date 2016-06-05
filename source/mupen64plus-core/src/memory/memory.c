@@ -944,42 +944,67 @@ static void write_pifd(void)
  */
 static void read_dd(void)
 {
-    readw(read_dd_regs, NULL, address, rdword);
+    readw(read_dd_regs, &g_dd, address, rdword);
 }
 
 static void read_ddb(void)
 {
-    readb(read_dd_regs, NULL, address, rdword);
+    readb(read_dd_regs, &g_dd, address, rdword);
 }
 
 static void read_ddh(void)
 {
-    readh(read_dd_regs, NULL, address, rdword);
+    readh(read_dd_regs, &g_dd, address, rdword);
 }
 
 static void read_ddd(void)
 {
-    readd(read_dd_regs, NULL, address, rdword);
+    readd(read_dd_regs, &g_dd, address, rdword);
 }
 
 static void write_dd(void)
 {
-    writew(write_dd_regs, NULL, address, cpu_word);
+    writew(write_dd_regs, &g_dd, address, cpu_word);
 }
 
 static void write_ddb(void)
 {
-    writeb(write_dd_regs, NULL, address, cpu_byte);
+    writeb(write_dd_regs, &g_dd, address, cpu_byte);
 }
 
 static void write_ddh(void)
 {
-    writeh(write_dd_regs, NULL, address, cpu_hword);
+    writeh(write_dd_regs, &g_dd, address, cpu_hword);
 }
 
 static void write_ddd(void)
 {
-    writed(write_dd_regs, NULL, address, cpu_dword);
+    writed(write_dd_regs, &g_dd, address, cpu_dword);
+}
+
+static void read_ddipl(void)
+{
+   readw(read_dd_ipl, &g_pi, address, rdword);
+}
+
+static void read_ddiplb(void)
+{
+   readb(read_dd_ipl, &g_pi, address, rdword);
+}
+
+static void read_ddiplh(void)
+{
+   readh(read_dd_ipl, &g_pi, address, rdword);
+}
+
+static void read_ddipld(void)
+{
+   readd(read_dd_ipl, &g_pi, address, rdword);
+}
+
+static void write_ddipl(void)
+{
+   writew(write_dd_ipl, &g_pi, address, cpu_word);
 }
 
 #ifdef DBG
