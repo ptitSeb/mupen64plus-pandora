@@ -56,21 +56,24 @@ extern i32 SR[32];
 
 #define FIT_IMEM(PC)    (PC & 0xFFF & 0xFFC)
 
-#ifdef EMULATE_STATIC_PC
+#if defined(EMULATE_STATIC_PC)
 #define CONTINUE    continue
 #define JUMP        goto BRANCH
+#elif defined(EMULATE_DELAY_SLOT)
+#define CONTINUE 	continue
+#define JUMP 		continue
 #else
 #define CONTINUE    break
 #define JUMP        break
 #endif
 
-#ifdef EMULATE_STATIC_PC
+#if defined(EMULATE_STATIC_PC) || defined(EMULATE_DELAY_SLOT)
 #define BASE_OFF    0x000
 #else
 #define BASE_OFF    0x004
 #endif
 
-#ifndef EMULATE_STATIC_PC
+#if! (defined(EMULATE_STATIC_PC) || defined(EMULATE_DELAY_SLOT))
 int stage;
 #endif
 
@@ -93,8 +96,8 @@ extern int MF_SP_STATUS_TIMEOUT;
 #define LINK_OFF    (BASE_OFF + 0x004)
 extern void set_PC(unsigned int address);
 
-#if (0x7FFFFFFFul >> 037 != 0x7FFFFFFFul >> ~0U)
-#define MASK_SA(sa) (sa & 037)
+#if 1//(0x7FFFFFFFul >> 0x1f != 0x7FFFFFFFul >> ~0U)
+#define MASK_SA(sa) ((sa) & 0x1f)
 /* Force masking in software. */
 #else
 #define MASK_SA(sa) (sa)

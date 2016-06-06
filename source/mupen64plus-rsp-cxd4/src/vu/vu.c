@@ -44,7 +44,7 @@ ALIGNED i16 cf_vce[N]; /* $vce:  vector compare extension register */
 VECTOR_OPERATION res_V(v16 vs, v16 vt)
 {
     vt = vs; /* unused */
-    message("C2\nRESERVED"); /* uncertain how to handle reserved, untested */
+ //   message("C2\nRESERVED"); /* uncertain how to handle reserved, untested */
 #ifdef ARCH_MIN_SSE2
     vs = _mm_setzero_si128();
     return (vs);
@@ -55,7 +55,7 @@ VECTOR_OPERATION res_V(v16 vs, v16 vt)
 }
 VECTOR_OPERATION res_M(v16 vs, v16 vt)
 { /* Ultra64 OS did have these, so one could implement this ext. */
-    message("VMUL IQ");
+//    message("VMUL IQ");
 #ifdef ARCH_MIN_SSE2
     vs = res_V(vs, vt);
     return (vs);

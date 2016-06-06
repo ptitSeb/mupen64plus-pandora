@@ -13,7 +13,8 @@
 * If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.             *
 \******************************************************************************/
 
-#define EMULATE_STATIC_PC
+//#define EMULATE_STATIC_PC
+#define EMULATE_DELAY_SLOT
 
 #include "su.h"
 
@@ -22,6 +23,9 @@
  * Some of the parallel timing features require perfect timing or configs.
  */
 #include "module.h"
+
+//#define GENTRACE
+#include "trace.h"
 
 int CPU_running;
 
@@ -43,7 +47,7 @@ NOINLINE void res_S(void)
 void set_PC(unsigned int address)
 {
     temp_PC = 0x04001000 + (address & 0xFFC);
-#ifndef EMULATE_STATIC_PC
+#if !(defined(EMULATE_STATIC_PC) || defined(EMULATE_DELAY_SLOT))
     stage = 1;
 #endif
     return;
@@ -223,6 +227,7 @@ MT_CMD_CLOCK       ,MT_READ_ONLY       ,MT_READ_ONLY       ,MT_READ_ONLY
 
 void SP_DMA_READ(void)
 {
+    unsigned int offC, offD; /* SP cache and dynamic DMA pointers */
     register unsigned int length;
     register unsigned int count;
     register unsigned int skip;
@@ -238,7 +243,6 @@ void SP_DMA_READ(void)
     skip += length;
     do
     { /* `count` always starts > 0, so we begin with `do` instead of `while`. */
-        unsigned int offC, offD; /* SP cache and dynamic DMA pointers */
         register unsigned int i = 0;
 
         --count;
@@ -253,12 +257,16 @@ void SP_DMA_READ(void)
             i += 0x008;
         } while (i < length);
     } while (count);
+
+    if ((*CR[0x0] & 0x1000) ^ (offC & 0x1000))
+        message("DMA over the DMEM-to-IMEM gap.");
     GET_RCP_REG(SP_DMA_BUSY_REG)  =  0x00000000;
     GET_RCP_REG(SP_STATUS_REG)   &= ~SP_STATUS_DMA_BUSY;
     return;
 }
 void SP_DMA_WRITE(void)
 {
+    unsigned int offC, offD; /* SP cache and dynamic DMA pointers */
     register unsigned int length;
     register unsigned int count;
     register unsigned int skip;
@@ -275,7 +283,6 @@ void SP_DMA_WRITE(void)
     skip += length;
     do
     { /* `count` always starts > 0, so we begin with `do` instead of `while`. */
-        unsigned int offC, offD; /* SP cache and dynamic DMA pointers */
         register unsigned int i = 0;
 
         --count;
@@ -287,6 +294,9 @@ void SP_DMA_WRITE(void)
             i += 0x000008;
         } while (i < length);
     } while (count);
+
+    if ((*CR[0x0] & 0x1000) ^ (offC & 0x1000))
+        message("DMA over the DMEM-to-IMEM gap.");
     GET_RCP_REG(SP_DMA_BUSY_REG)  =  0x00000000;
     GET_RCP_REG(SP_STATUS_REG)   &= ~SP_STATUS_DMA_BUSY;
     return;
@@ -1560,6 +1570,9 @@ NOINLINE void run_task(void)
 {
     register unsigned int PC;
     register unsigned int i;
+#ifdef EMULATE_DELAY_SLOT
+    temp_PC = ~0U;
+#endif
 
     PC = FIT_IMEM(GET_RCP_REG(SP_PC_REG));
     CPU_running = ~GET_RCP_REG(SP_STATUS_REG) & SP_STATUS_HALT;
@@ -1579,6 +1592,22 @@ NOINLINE void run_task(void)
         unsigned int op, element;
 
         inst = *(pi32)(IMEM + FIT_IMEM(PC));
+#ifdef GENTRACE
+        char s[128];
+        rsp_dasm_one(s, PC, inst);
+        TRACE("%2x %3x\t%s\n", ((pu8)DMEM)[0x1934], PC, s);
+#endif
+#ifdef EMULATE_DELAY_SLOT
+        if (temp_PC != ~0U)///DELAY SLOT USAGE
+        {
+            PC = temp_PC & 0x00000FFC;
+            temp_PC = ~0U;
+        }
+        else
+        {
+            PC = PC+ 0x004;
+        }
+#endif
 #ifdef EMULATE_STATIC_PC
         PC = (PC + 0x004);
 EX:
@@ -1586,8 +1615,8 @@ EX:
 #ifdef SP_EXECUTE_LOG
         step_SP_commands(inst);
 #endif
-
         op = inst >> 26;
+
 #ifdef _DEBUG
         SR[0] = 0x00000000; /* already handled on per-instruction basis */
 #endif
@@ -1606,8 +1635,10 @@ EX:
             switch (inst % 64)
             {
             case 000: /* SLL */
-                SR[rd] = SR[rt] << MASK_SA(inst >> 6);
-                SR[0] = 0x00000000;
+                if(inst) {   // NOP is 000000
+                    SR[rd] = SR[rt] << MASK_SA(inst >> 6);
+                    SR[0] = 0x00000000;
+                }
                 CONTINUE;
             case 002: /* SRL */
                 SR[rd] = (u32)(SR[rt]) >> MASK_SA(inst >> 6);
@@ -1991,7 +2022,7 @@ EX:
             res_S();
             CONTINUE;
         }
-#ifndef EMULATE_STATIC_PC
+#if !(defined(EMULATE_STATIC_PC) || defined(EMULATE_DELAY_SLOT))
         if (stage == 2) /* branch phase of scheduler */
         {
             stage = 0*stage;
@@ -2007,10 +2038,13 @@ EX:
         continue;
 #else
         continue;
+
+#ifndef EMULATE_DELAY_SLOT
 BRANCH:
         inst = *(pi32)(IMEM + FIT_IMEM(PC));
         PC = temp_PC & 0x00000FFC;
         goto EX;
+#endif
 #endif
     }
     GET_RCP_REG(SP_PC_REG) = 0x04001000 | FIT_IMEM(PC);
