@@ -294,7 +294,7 @@ int8_t CProfile::LoadPlugins()
 	plugin.Name="RSP Plugin";
 	plugin.TextFile="rspdriver";
 //        plugin.TextFile+=".txt";
-	// audios plugins
+	// rsp plugins
 	one.Name="Default HLE RSP";
 	one.So="mupen64plus-rsp-hle";
 	plugin.Plugins.push_back(one);
@@ -304,6 +304,9 @@ int8_t CProfile::LoadPlugins()
 	one.Name="Z64 LLE RSP";
 	one.So="mupen64plus-rsp-z64";
 	plugin.Plugins.push_back(one);
+    one.Name="CXD4 MLE RSP";
+    one.So="mupen64plus-rsp-cxd4";
+    plugin.Plugins.push_back(one);
 	
 	Plugins.push_back(plugin);
    //Get default values
