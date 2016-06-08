@@ -15823,6 +15823,8 @@ void CombineBlender ()
       // clr_in * a + clr_in * (1-a)
     case 0xc800:
     case 0x00c0:
+      // Bomberman second attack
+    case 0xFA00:
       //ISS64
     case 0xc302:
       A_BLEND (GR_BLEND_ONE, GR_BLEND_ZERO);
