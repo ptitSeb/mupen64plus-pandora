@@ -96,7 +96,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     PIC ?= 1
 	OSD ?= 0
     NEW_DYNAREC := 1
-    CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment 
+    ifeq ($(ODROID),1)
+     CFLAGS += -g -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -mtune=cortex-a8 -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment
+    else
+     CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment 
+    endif
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
   endif
 endif
@@ -464,7 +468,11 @@ ifneq ($(NO_ASM), 1)
   ifeq ($(CPU), ARM)
     ifeq ($(ARCH_DETECTED), 32BITS)
       DYNAREC = arm
+	ifeq ($(ODROID),1)
+	  CFLAGS += -DODROID
+	else
 	  CFLAGS += -DPANDORA
+	endif
     endif
   endif
 endif

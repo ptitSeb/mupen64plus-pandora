@@ -31,7 +31,7 @@ using namespace std;
 #define SCREEN_FLAGS        SDL_SWSURFACE           /**< Basic SDL screen flags. */
 #define BASE_WIDTH          320                     /**< Minimum screen width size (pixels). */
 #define BASE_HEIGHT         240                     /**< Maximum screen height size (pixels). */
-#if defined(PANDORA) || defined(X86)
+#if defined(PANDORA) || defined(X86) || defined(ODROID)
 #define SCREEN_WIDTH        800                     /**< Default screen width for Pandora and PC (pixels). */
 #define SCREEN_HEIGHT       480                     /**< Default screen height for Pandora and PC (pixels). */
 #else

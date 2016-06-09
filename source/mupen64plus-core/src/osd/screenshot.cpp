@@ -25,9 +25,17 @@
 #include <ctype.h>
 
 #ifdef PANDORA
-#include <SDL_opengles2.h>
+# include <SDL_opengles2.h>
+#elif defined(ODROID)
+# include <GLES2/gl2.h>
+# include <GLES2/gl2ext.h>
+# ifndef APIENTRY
+# define APIENTRY
+# endif
+# undef __USE_SDL_OPENGL__
+# define __USE_SDL_GLES2__
 #else
-#include <SDL_opengl.h>
+# include <SDL_opengl.h>
 #endif
 #include <SDL.h>
 #include <png.h>

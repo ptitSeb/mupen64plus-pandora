@@ -37,7 +37,7 @@
 /**<        WIZ     : enables specific settings for the wiz platform. */
 /**<        GP2X    : enables specific settings for the gp2x platform. */
 /**<        X86     : enables specific settings for the pc platform. */
-
+/**<        ODROID  : enables specific settings for the odroid platform. */
 /** @brief Main entry into the application
  * @param argc : number of arguments
  * @param argv : arguments passed to the application
