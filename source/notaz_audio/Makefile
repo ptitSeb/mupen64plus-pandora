@@ -29,6 +29,12 @@ ifneq "$(CPU)" "ARM"
 CFLAGS += -fpic -DPIC
 endif
 CFLAGS += -Wall -ggdb -gdwarf-2
+ifeq ($(ODROID),1)
+ CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -ftree-vectorize -ffast-math
+else
+ CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -ftree-vectorize -ffast-math
+endif
+CFLAGS += -O3
 
 LDFLAGS += -ldl
 
