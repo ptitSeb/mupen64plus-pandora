@@ -109,7 +109,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     CPU := ARM
     ARCH_DETECTED := 32BITS
     PIC ?= 1
-    CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ftree-vectorize -ffast-math
+    ifeq ($(ODROID),1)
+     CFLAGS += -g -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ftree-vectorize -ffast-math
+    else
+     CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ftree-vectorize -ffast-math
+    endif
   endif
 endif
 ifeq ("$(CPU)","NONE")
