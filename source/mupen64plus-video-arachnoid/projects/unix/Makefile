@@ -104,7 +104,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     CPU := ARM
     ARCH_DETECTED := 32BITS
     PIC ?= 1
-    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math -fpermissive
+    ifeq ($(ODROID),1)
+     CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -fpermissive -DODROID
+    else
+     CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math -fpermissive -PANDORA
+    endif
     CFLAGS += -DHAVE_GLES
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
   endif
@@ -169,7 +173,11 @@ else
     GL_CFLAGS += $(shell sdl-config --cflags)
     GL_LDLIBS += $(shell sdl-config --libs)
     GL_CFLAGS += -I/mnt/utmp/codeblocks/usr/include/GLES
-	GL_LDLIBS += -lGLES_CM -lEGL -lrt
+    ifeq ($(ODROID),1)
+     GL_LDLIBS += -lGLESv1_CM -lEGL -lrt
+    else
+     GL_LDLIBS += -lGLES_CM -lEGL -lrt
+    endif
   endif
   CFLAGS += $(GL_CFLAGS)
   LDLIBS += $(GL_LDLIBS)

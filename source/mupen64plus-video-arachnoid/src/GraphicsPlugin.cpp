@@ -37,7 +37,11 @@
 #ifdef HAVE_GLES
 #include "eglport.h"
 #include <SDL.h>
-#include <SDL_opengles.h>
+# include <GLES/gl.h>
+# include <GLES/glext.h>
+# ifndef APIENTRY
+# define APIENTRY
+# endif
 #endif
 
 //FrameBuffer framebuffer01;
