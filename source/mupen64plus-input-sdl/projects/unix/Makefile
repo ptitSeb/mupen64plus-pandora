@@ -107,7 +107,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     CPU := ARM
     ARCH_DETECTED := 32BITS
     PIC ?= 1
-    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char
+    ifeq ($(ODROID),1)
+     CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char
+    else
+     CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char
+    endif
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
   endif
 endif
