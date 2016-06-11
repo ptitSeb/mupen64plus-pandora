@@ -39,7 +39,14 @@
 
 
 #elif SDL_VIDEO_OPENGL_ES2
-#include <SDL_opengles2.h>
+#define GL_GLEXT_PROTOTYPES
+# include <GLES2/gl2.h>
+# include <GLES2/gl2ext.h>
+# ifndef APIENTRY
+# define APIENTRY
+# endif
+# undef __USE_SDL_OPENGL__
+# define __USE_SDL_GLES2__
 #define GLSL_VERSION "100"
 
 // Extension names
