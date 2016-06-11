@@ -29,7 +29,7 @@
  *   1: enable
  */
 #define HIRES_TEXTURE 1
-
+#pragma GCC optimize "no-single-precision-constant"
 #include "TxCache.h"
 #include "TxQuantize.h"
 #include "TxImage.h"

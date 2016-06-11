@@ -109,7 +109,13 @@ extern "C" {
 #include <stdio.h>
 //#define printf(...)
 #define GL_GLEXT_PROTOTYPES
-#include <SDL_opengles2.h>
+# include <GLES2/gl2.h>
+# include <GLES2/gl2ext.h>
+# ifndef APIENTRY
+# define APIENTRY
+# endif
+# undef __USE_SDL_OPENGL__
+# define __USE_SDL_GLES2__
 #endif // _WIN32
 #include "glide.h"
 #include "glState.cpp"

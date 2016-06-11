@@ -114,11 +114,16 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     ARCH_DETECTED := 32BITS
     PIC ?= 1
     NO_ASM := 1
-    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -fno-strict-aliasing -fno-strict-overflow -fsingle-precision-constant
+    ifeq ($(ODROID),1)
+     CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -fno-strict-aliasing -fno-strict-overflow -ftree-vectorize
+    else
+     CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -fno-strict-aliasing -fno-strict-overflow -fsingle-precision-constant -ftree-vectorize
+    endif
     CFLAGS += -DNOSSE -DNO_ASM -DANDROID
 	CFLAGS += -DPAULSCODE 
 #	HIRES := 0
 #    CXXFLAGS += -std=c++11
+     CXXFLAGS += -fpermissive
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
   endif
 endif
