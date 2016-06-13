@@ -112,7 +112,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     PIC ?= 1
     POSTFIX ?= es1
     NO_ASM := 1
-    CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math -fpermissive
+    ifeq ($(ODROID),1)
+     CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -fpermissive -DODROID
+    else
+     CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math -fpermissive -DPANDORA
+    endif
     CFLAGS += -DANDROID
     CFLAGS += -DPAULSCODE 
     CFLAGS += -DHAVE_GLES
@@ -220,7 +224,11 @@ ifeq ($(origin GL_CFLAGS) $(origin GL_LDLIBS), undefined undefined)
 #  GL_CFLAGS += $(shell $(PKG_CONFIG) --cflags gl)
 #  GL_LDLIBS +=  $(shell $(PKG_CONFIG) --libs gl)
   GL_CFLAGS += -I/mnt/utmp/codeblocks/usr/include/GLES
-  GL_LDLIBS += -lGLES_CM -lEGL -lrt
+  ifeq ($(ODROID),1)
+   GL_LDLIBS += -lGLESv1_CM -lEGL -lrt
+  else
+   GL_LDLIBS += -lGLES_CM -lEGL -lrt
+  endif
 endif
 CFLAGS += $(GL_CFLAGS)
 LDLIBS += $(GL_LDLIBS)

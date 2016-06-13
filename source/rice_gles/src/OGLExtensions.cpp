@@ -20,7 +20,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* This is only necessary because Windows does not contain development support for OpenGL versions beyond 1.1 */
 
 #ifdef HAVE_GLES
-#include <SDL_opengles.h>
+# include <GLES/gl.h>
+# include <GLES/glext.h>
+# ifndef APIENTRY
+# define APIENTRY
+# endif
 #else
 #include <SDL_opengl.h>
 #endif

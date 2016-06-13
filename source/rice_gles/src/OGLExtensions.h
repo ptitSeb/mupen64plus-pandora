@@ -23,7 +23,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define OGL_EXTENSIONS_H
 
 #ifdef HAVE_GLES
-#include <SDL_opengles.h>
+# include <GLES/gl.h>
+# include <GLES/glext.h>
+# ifndef APIENTRY
+# define APIENTRY
+# endif
 #define APIENTRYP		GL_API
 #else
 #include <SDL_opengl.h>

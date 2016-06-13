@@ -26,7 +26,13 @@
 
 #if SDL_VIDEO_OPENGL
 #ifdef HAVE_GLES
-#include <SDL_opengles.h>
+
+# include <GLES/gl.h>
+# include <GLES/glext.h>
+# ifndef APIENTRY
+# define APIENTRY
+# endif
+
 #define GL_CLAMP                        GL_CLAMP_TO_EDGE
 #define GL_MAX_TEXTURE_UNITS_ARB        GL_MAX_TEXTURE_UNITS
 #define GL_MIRRORED_REPEAT_ARB          GL_MIRRORED_REPEAT_OES
