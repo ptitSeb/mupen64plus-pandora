@@ -107,7 +107,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     ifeq ($(ODROID),1)
      CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -fpermissive -DODROID
     else
-     CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math -fpermissive -PANDORA
+     ifeq ($(CHIP),1)
+       CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -fpermissive -DCHIP
+     else
+       CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ffast-math -fpermissive -DPANDORA
+     endif
     endif
     CFLAGS += -DHAVE_GLES
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
