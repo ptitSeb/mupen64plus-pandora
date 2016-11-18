@@ -114,7 +114,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     ifeq ($(ODROID),1)
      CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -DODROID
     else
-     CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ffast-math -fsingle-precision-constant -ftree-vectorize -DPANDORA
+     ifeq ($(CHIP),1)
+       CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -fsingle-precision-constant -ftree-vectorize -DCHIP
+     else
+       CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ffast-math -fsingle-precision-constant -ftree-vectorize -DPANDORA
+     endif
     endif
     CFLAGS += -DANDROID
     CFLAGS += -DPAULSCODE 
