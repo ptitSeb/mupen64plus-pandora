@@ -22,7 +22,7 @@
 // On-screen Display
 #ifdef PANDORA
 # include <SDL_opengles2.h>
-#elif defined(ODROID)
+#elif defined(ODROID) || defined(CHIP)
 # include <GLES2/gl2.h>
 # include <GLES2/gl2ext.h>
 # ifndef APIENTRY
@@ -35,7 +35,7 @@
 #endif
 #include <SDL_thread.h>
 
-#if !(defined(PANDORA) || defined(ODROID))
+#if !(defined(PANDORA) || defined(ODROID) || defined(CHIP))
 #include "OGLFT.h"
 #endif
 #include "osd.h"
