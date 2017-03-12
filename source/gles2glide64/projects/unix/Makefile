@@ -124,11 +124,10 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
      endif
     endif
     CFLAGS += -DNOSSE -DNO_ASM -DANDROID
-	CFLAGS += -DPAULSCODE 
-#	HIRES := 0
+    CFLAGS += -DPAULSCODE 
+#    HIRES := 0
 #    CXXFLAGS += -std=c++11
-     CXXFLAGS += -fpermissive
-    $(warning Architecture "$(HOST_CPU)" not officially supported.')
+    CXXFLAGS += -fpermissive
   endif
 endif
 ifeq ("$(CPU)","NONE")
@@ -136,10 +135,11 @@ ifeq ("$(CPU)","NONE")
 endif
 
 # base CFLAGS, LDLIBS, and LDFLAGS
-OPTFLAGS ?= -Ofast -ffast-math -flto -fuse-linker-plugin
+OPTFLAGS ?= -O3 -ffast-math -flto -fuse-linker-plugin
+OPTXXFLAGS ?= -O3 -ffast-math -flto -flto-odr-type-merging -fuse-linker-plugin
 WARNFLAGS ?= -Wall
 CFLAGS += $(OPTFLAGS) $(WARNFLAGS) -ffast-math -fno-strict-aliasing -fvisibility=hidden -I../../src -I../../src/Glitch64/inc -DGCC
-CXXFLAGS += -fvisibility-inlines-hidden -std=gnu++0x
+CXXFLAGS += $(OPTXXFLAGS) -fvisibility-inlines-hidden -std=gnu++0x
 LDFLAGS += $(SHARED)
 BOOST_SUFFIX ?=
 

@@ -229,72 +229,65 @@ void MulMatricesC(float m1[4][4],float m2[4][4],float r[4][4])
 #ifdef __ARM_NEON__
 void MultMatrix_neon( float m0[4][4], float m1[4][4], float dest[4][4])
 {
+   const float* a1 = (float*)m0+8;
+	const float* b1=(float*)m1+8;
+    float* c1=(float*)dest+8;
     asm volatile (
-	"vld1.32 		{d0, d1}, [%1]!			\n\t"	//q0 = m1
-	"vld1.32 		{d2, d3}, [%1]!	    	\n\t"	//q1 = m1+4
-	"vld1.32 		{d4, d5}, [%1]!	    	\n\t"	//q2 = m1+8
-	"vld1.32 		{d6, d7}, [%1]	    	\n\t"	//q3 = m1+12
-	"vld1.32 		{d16, d17}, [%0]!		\n\t"	//q8 = m0
-	"vld1.32 		{d18, d19}, [%0]!   	\n\t"	//q9 = m0+4
-	"vld1.32 		{d20, d21}, [%0]!   	\n\t"	//q10 = m0+8
-	"vld1.32 		{d22, d23}, [%0]    	\n\t"	//q11 = m0+12
-
-	"vmul.f32 		q12, q8, d0[0] 			\n\t"	//q12 = q8 * d0[0]
-	"vmul.f32 		q13, q8, d2[0] 		    \n\t"	//q13 = q8 * d2[0]
-	"vmul.f32 		q14, q8, d4[0] 		    \n\t"	//q14 = q8 * d4[0]
-	"vmul.f32 		q15, q8, d6[0]	 		\n\t"	//q15 = q8 * d6[0]
-	"vmla.f32 		q12, q9, d0[1] 			\n\t"	//q12 = q9 * d0[1]
-	"vmla.f32 		q13, q9, d2[1] 		    \n\t"	//q13 = q9 * d2[1]
-	"vmla.f32 		q14, q9, d4[1] 		    \n\t"	//q14 = q9 * d4[1]
-	"vmla.f32 		q15, q9, d6[1] 		    \n\t"	//q15 = q9 * d6[1]
-	"vmla.f32 		q12, q10, d1[0] 		\n\t"	//q12 = q10 * d0[0]
-	"vmla.f32 		q13, q10, d3[0] 		\n\t"	//q13 = q10 * d2[0]
-	"vmla.f32 		q14, q10, d5[0] 		\n\t"	//q14 = q10 * d4[0]
-	"vmla.f32 		q15, q10, d7[0] 		\n\t"	//q15 = q10 * d6[0]
-	"vmla.f32 		q12, q11, d1[1] 		\n\t"	//q12 = q11 * d0[1]
-	"vmla.f32 		q13, q11, d3[1] 		\n\t"	//q13 = q11 * d2[1]
-	"vmla.f32 		q14, q11, d5[1] 		\n\t"	//q14 = q11 * d4[1]
-	"vmla.f32 		q15, q11, d7[1]	 	    \n\t"	//q15 = q11 * d6[1]
-
-	"vst1.32 		{d24, d25}, [%2]! 		\n\t"	//d = q12
-	"vst1.32 		{d26, d27}, [%2]! 	    \n\t"	//d+4 = q13
-	"vst1.32 		{d28, d29}, [%2]! 	    \n\t"	//d+8 = q14
-	"vst1.32 		{d30, d31}, [%2] 	    \n\t"	//d+12 = q15
-
-	:"+r"(m1), "+r"(m0), "+r"(dest):
-    : "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
-    "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
-    "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31",
-    "memory"
-	);
+    "vld1.32  {d16-d19}, [%2]       \n" 
+    "vld1.32  {d20-d23}, [%3]       \n"
+    "vld1.32  {d0-d3}, [%4]         \n"
+    "vld1.32  {d4-d7}, [%5]         \n"
+    "vmul.f32 q12, q8, d0[0]        \n"
+    "vmul.f32 q13, q8, d2[0]        \n"
+    "vmul.f32 q14, q8, d4[0]        \n"
+    "vmul.f32 q15, q8, d6[0]        \n"
+    "vmla.f32 q12, q9, d0[1]        \n"
+    "vmla.f32 q13, q9, d2[1]        \n"
+    "vmla.f32 q14, q9, d4[1]        \n"
+    "vmla.f32 q15, q9, d6[1]        \n"
+    "vmla.f32 q12, q10, d1[0]       \n"
+    "vmla.f32 q13, q10, d3[0]       \n"
+    "vmla.f32 q14, q10, d5[0]       \n"
+    "vmla.f32 q15, q10, d7[0]       \n"
+    "vmla.f32 q12, q11, d1[1]       \n"
+    "vmla.f32 q13, q11, d3[1]       \n"
+    "vmla.f32 q14, q11, d5[1]       \n"
+    "vmla.f32 q15, q11, d7[1]       \n"
+    "vst1.32  {d24-d27}, [%0]       \n"
+    "vst1.32  {d28-d31}, [%1]       \n"
+    ::"r"(dest), "r"(c1), "r"(m0), "r"(a1), "r"(m1), "r"(b1)
+    : "q0", "q1", "q2", "q3", 
+      "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15", "memory"
+    );
 }
 
 void Normalize_neon(float v[3])
 {
-	asm volatile (
-	"vld1.32 		{d4}, [%0]!	    		\n\t"	//d4={x,y}
-	"flds    		s10, [%0]   	    	\n\t"	//d5[0] = z
-	"sub    		%0, %0, #8   	    	\n\t"	//d5[0] = z
-	"vmul.f32 		d0, d4, d4				\n\t"	//d0= d4*d4
-	"vpadd.f32 		d0, d0, d0				\n\t"	//d0 = d[0] + d[1]
-    "vmla.f32 		d0, d5, d5				\n\t"	//d0 = d0 + d5*d5
+    asm volatile (
+        "vld1.32                {d4}, [%0]                      \n\t"   //d4={x0,y0}
+        "flds                   s10, [%0, #8]                   \n\t"   //d5[0]={z0}
+        "vsub.f32               s11, s11, s11                   \n\t"
 
-	"vmov.f32 		d1, d0					\n\t"	//d1 = d0
-	"vrsqrte.f32 	d0, d0					\n\t"	//d0 = ~ 1.0 / sqrt(d0)
-	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
-	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d2) / 2
-	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d3
-	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
-	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d3) / 2
-	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d4
+        "vmul.f32               d0, d4, d4                      \n\t"   //d0= d4*d4
+        "vpadd.f32              d0, d0                          \n\t"   //d0 = d[0] + d[1]
+        "vmla.f32               d0, d5, d5                      \n\t"   //d0 = d0 + d5*d5 
+        
+        "vmov.f32               d1, d0                          \n\t"   //d1 = d0
+        "vrsqrte.f32    		d0, d0                          \n\t"   //d0 = ~ 1.0 / sqrt(d0)
+        "vmul.f32               d2, d0, d1                      \n\t"   //d2 = d0 * d1
+        "vrsqrts.f32    		d3, d2, d0                      \n\t"   //d3 = (3 - d0 * d2) / 2        
+        "vmul.f32               d0, d0, d3                      \n\t"   //d0 = d0 * d3
+/*        "vmul.f32               d2, d0, d1                      \n\t"   //d2 = d0 * d1  
+        "vrsqrts.f32    		d3, d2, d0                      \n\t"   //d4 = (3 - d0 * d3) / 2        
+        "vmul.f32               d0, d0, d3                      \n\t"   //d0 = d0 * d4  */  // 1 iteration should be enough
 
-	"vmul.f32 		q2, q2, d0[0]			\n\t"	//d0= d2*d4
-	"vst1.32 		{d4}, [%0]!  			\n\t"	//d2={x0,y0}, d3={z0, w0}
-	"fsts    		s10, [%0]     			\n\t"	//d2={x0,y0}, d3={z0, w0}
-
-	:"+r"(v) :
-    : "d0", "d1", "d2", "d3", "d4", "d5", "memory"
-	);
+        "vmul.f32               q2, q2, d0[0]                   \n\t"   //d0= d2*d4
+        "vst1.32                {d4}, [%0]                     	\n\t"   //
+        "fsts                   s10, [%0, #8]                   \n\t"   //
+        
+        :"+&r"(v): 
+        : "d0", "d1", "d2", "d3", "d4", "d5", "memory"
+    );
 }
 
 float DotProduct_neon( float v0[3], float v1[3] )
