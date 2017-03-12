@@ -143,34 +143,8 @@ void COGLTexture::EndUpdate(DrawInfo *di)
     // Copy the image data from main memory to video card texture memory
 #if SDL_VIDEO_OPENGL
 #ifdef HAVE_GLES
-	// first change format BGRA->RGBA and reduce bit if needed
-	unsigned char*  m_glesTex;
-	if (m_glFmt == GL_RGBA4) {
-		m_glesTex = (unsigned char*)malloc(m_dwCreatedTextureHeight*m_dwCreatedTextureWidth*2);
-		unsigned short *p = (unsigned short*)m_glesTex;
-		unsigned char *f = (unsigned char*)m_pTexture;
-		for (int j=0; j<m_dwCreatedTextureHeight; j++)
-			for (int i=0; i<m_dwCreatedTextureWidth; i++) {
-				// *f = B, *(f+1) = G, *(f+2) = R, *(f+3) = A
-				// RRRR GGGG BBBB AAAA
-				*(p++)= ((*(f+2))&0xf0)>>4 | ((*(f+1))&0xf0) | (((*f))&0xf0)<<4 | ((*(f+3))&0xf0)<<8;
-				f+=4;
-		}
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_dwCreatedTextureWidth, m_dwCreatedTextureHeight, 0, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4, m_glesTex);
-	} else {
-		m_glesTex = (unsigned char*)malloc(m_dwCreatedTextureHeight*m_dwCreatedTextureWidth*4);
-		unsigned int *p = (unsigned int*)m_glesTex;
-		unsigned char *f = (unsigned char*)m_pTexture;
-		for (int j=0; j<m_dwCreatedTextureHeight; j++)
-			for (int i=0; i<m_dwCreatedTextureWidth; i++) {
-				// *f = B, *(f+1) = G, *(f+2) = R, *(f+3) = A
-				// AAAAAAAA BBBBBBBB GGGGGGGG RRRRRRRR
-				*(p++)= ((*(f+2))) | ((*(f+1)))<<8 | ((*f))<<16 | ((*(f+3)))<<24;
-				f+=4;
-		}
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_dwCreatedTextureWidth, m_dwCreatedTextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_glesTex);
-	}
-	free(m_glesTex);
+    // removed 16bits texture handling...
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, m_dwCreatedTextureWidth, m_dwCreatedTextureHeight, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, m_pTexture);	
 #else
     glTexImage2D(GL_TEXTURE_2D, 0, m_glFmt, m_dwCreatedTextureWidth, m_dwCreatedTextureHeight, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, m_pTexture);
 #endif

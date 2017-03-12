@@ -657,30 +657,31 @@ void SSEVec3TransformNormal(void)
 void NormalizeNormalVec()
 #ifdef __ARM_NEON__0
 {
-	asm volatile (
-	"vld1.32 		{d4}, [%0]	    		\n\t"	//d4={x,y}
-	"flds    		s10, [%0, #8]   	    	\n\t"	//d5[0] = z
-//	"sub    		%0, %0, #8   	    	\n\t"	//d5[0] = z
-	"vmul.f32 		d0, d4, d4				\n\t"	//d0= d4*d4
-	"vpadd.f32 		d0, d0, d0				\n\t"	//d0 = d[0] + d[1]
-    "vmla.f32 		d0, d5, d5				\n\t"	//d0 = d0 + d5*d5
+    asm volatile (
+        "vld1.32                {d4}, [%0]                      \n\t"   //d4={x0,y0}
+        "flds                   s10, [%0, #8]                   \n\t"   //d5[0]={z0}
+        "vsub.f32               s11, s11, s11                   \n\t"
 
-	"vmov.f32 		d1, d0					\n\t"	//d1 = d0
-	"vrsqrte.f32 	d0, d0					\n\t"	//d0 = ~ 1.0 / sqrt(d0)
-	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
-	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d2) / 2
-	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d3
-	"vmul.f32 		d2, d0, d1				\n\t"	//d2 = d0 * d1
-	"vrsqrts.f32 	d3, d2, d0				\n\t"	//d3 = (3 - d0 * d3) / 2
-	"vmul.f32 		d0, d0, d3				\n\t"	//d0 = d0 * d4
+        "vmul.f32               d0, d4, d4                      \n\t"   //d0= d4*d4
+        "vpadd.f32              d0, d0                          \n\t"   //d0 = d[0] + d[1]
+        "vmla.f32               d0, d5, d5                      \n\t"   //d0 = d0 + d5*d5 
+        
+        "vmov.f32               d1, d0                          \n\t"   //d1 = d0
+        "vrsqrte.f32    		d0, d0                          \n\t"   //d0 = ~ 1.0 / sqrt(d0)
+        "vmul.f32               d2, d0, d1                      \n\t"   //d2 = d0 * d1
+        "vrsqrts.f32    		d3, d2, d0                      \n\t"   //d3 = (3 - d0 * d2) / 2        
+        "vmul.f32               d0, d0, d3                      \n\t"   //d0 = d0 * d3
+/*        "vmul.f32               d2, d0, d1                      \n\t"   //d2 = d0 * d1  
+        "vrsqrts.f32    		d3, d2, d0                      \n\t"   //d4 = (3 - d0 * d3) / 2        
+        "vmul.f32               d0, d0, d3                      \n\t"   //d0 = d0 * d4  */  // 1 iteration should be enough
 
-	"vmul.f32 		q2, q2, d0[0]			\n\t"	//d0= d2*d4
-	"vst1.32 		{d4}, [%0]  			\n\t"	//d2={x0,y0}, d3={z0, w0}
-	"fsts    		s10, [%0, #8]     			\n\t"	//d2={x0,y0}, d3={z0, w0}
-
-	::"r"(g_normal)
-    : "d0", "d1", "d2", "d3", "d4", "d5", "memory"
-	);
+        "vmul.f32               q2, q2, d0[0]                   \n\t"   //d0= d2*d4
+        "vst1.32                {d4}, [%0]                     	\n\t"   //
+        "fsts                   s10, [%0, #8]                   \n\t"   //
+        
+        ::"r"(g_normal)
+        : "d0", "d1", "d2", "d3", "d4", "d5", "memory"
+    );
 }
 #else
 {
