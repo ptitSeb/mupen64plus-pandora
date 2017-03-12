@@ -80,14 +80,17 @@ ifneq ("$(filter x86_64 amd64,$(HOST_CPU))","")
   ifeq ("$(BITS)", "32")
     ARCH_DETECTED := 64BITS_32
     PIC ?= 0
+    CFLAGS += -DARCH_MIN_SSE2
   else
     ARCH_DETECTED := 64BITS
     PIC ?= 1
+    CFLAGS += -DARCH_MIN_SSE2
   endif
 endif
 ifneq ("$(filter pentium i%86,$(HOST_CPU))","")
   CPU := X86
   ARCH_DETECTED := 32BITS
+  CFLAGS += -DARCH_MIN_SSE2
   PIC ?= 0
 endif
 ifneq ("$(filter ppc macppc socppc powerpc,$(HOST_CPU))","")
@@ -111,11 +114,14 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     PIC ?= 1
     ifeq ($(ODROID),1)
      CFLAGS += -g -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ftree-vectorize -ffast-math
+     CFLAGS += -DUSE_SSE2NEON -D__ARM_NEON__
     else
      ifeq ($(CHIP),1)
        CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=hard -fsigned-char -ftree-vectorize -ffast-math
+       CFLAGS += -DUSE_SSE2NEON -D__ARM_NEON__
      else
        CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ftree-vectorize -ffast-math
+       CFLAGS += -DUSE_SSE2NEON -D__ARM_NEON__
      endif
     endif
   endif
@@ -263,13 +269,13 @@ $(shell $(MKDIR) $(OBJDIRS))
 TARGET = mupen64plus-rsp-cxd4$(POSTFIX).$(SO_EXTENSION)
 
 targets:
-	@echo "Mupen64Plus-rsp-hle makefile. "
+	@echo "Mupen64Plus-rsp-cxd4 makefile. "
 	@echo "  Targets:"
-	@echo "    all           == Build Mupen64Plus rsp-hle plugin"
+	@echo "    all           == Build Mupen64Plus rsp-cxd4 plugin"
 	@echo "    clean         == remove object files"
 	@echo "    rebuild       == clean and re-build all"
-	@echo "    install       == Install Mupen64Plus rsp-hle plugin"
-	@echo "    uninstall     == Uninstall Mupen64Plus rsp-hle plugin"
+	@echo "    install       == Install Mupen64Plus rsp-cxd4 plugin"
+	@echo "    uninstall     == Uninstall Mupen64Plus rsp-cxd4 plugin"
 	@echo "  Options:"
 	@echo "    BITS=32       == build 32-bit binaries on 64-bit machine"
 	@echo "    APIDIR=path   == path to find Mupen64Plus Core headers"
