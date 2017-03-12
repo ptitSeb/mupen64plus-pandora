@@ -113,9 +113,9 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     POSTFIX ?= es1
     NO_ASM := 1
     ifeq ($(ODROID),1)
-     CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -fpermissive -DODROID
+     CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -DODROID
     else
-     CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -ffast-math -fpermissive -DPANDORA
+     CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ffast-math -DPANDORA
     endif
     CFLAGS += -DANDROID
     CFLAGS += -DPAULSCODE 
