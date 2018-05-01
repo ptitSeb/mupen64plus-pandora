@@ -94,7 +94,7 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     CPU := ARM
     ARCH_DETECTED := 32BITS
     PIC ?= 1
-	OSD ?= 0
+    OSD ?= 0
     NEW_DYNAREC := 1
     ifeq ($(ODROID),1)
      CFLAGS += -g -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment
@@ -237,7 +237,10 @@ ifeq ($(origin SDL_CFLAGS) $(origin SDL_LDLIBS), undefined undefined)
   SDL_LDLIBS += $(shell $(SDL_CONFIG) --libs)
 endif
 CFLAGS += $(SDL_CFLAGS)
-LDLIBS += $(SDL_LDLIBS) -lEGL
+LDLIBS += $(SDL_LDLIBS)
+ifeq ($(GLES), 1)
+ LDLIBS += -lEGL
+endif
 
 OSD ?= 1
 ifeq ($(OSD), 1)
@@ -267,12 +270,14 @@ ifeq ($(OSD), 1)
     ifeq ($(shell $(PKG_CONFIG) --modversion gl 2>/dev/null),)
       $(error No OpenGL development libraries found!)
     endif
-    GL_CFLAGS += $(shell $(PKG_CONFIG) --cflags glesv2)
-    GL_LDLIBS +=  $(shell $(PKG_CONFIG) --libs glesv2)
+    ifeq ($(GLES), 1)
+     GL_CFLAGS += $(shell $(PKG_CONFIG) --cflags glesv2)
+     GL_LDLIBS +=  $(shell $(PKG_CONFIG) --libs glesv2)
+    endif
   endif
   CFLAGS += $(GL_CFLAGS)
-  LDLIBS += -lGL2
-#  LDLIBS += $(GL_LDLIBS)
+#  LDLIBS += -lGL
+  LDLIBS += $(GL_LDLIBS)
 
   ifeq ($(origin GLU_CFLAGS) $(origin GLU_LDLIBS), undefined undefined)
     ifeq ($(shell $(PKG_CONFIG) --modversion glu 2>/dev/null),)
@@ -282,8 +287,8 @@ ifeq ($(OSD), 1)
     GLU_LDLIBS +=  $(shell $(PKG_CONFIG) --libs glu)
   endif
   CFLAGS += $(GLU_CFLAGS)
-  LDLIBS += -lGLU
-#  LDLIBS += $(GLU_LDLIBS)
+#  LDLIBS += -lGLU
+  LDLIBS += $(GLU_LDLIBS)
 endif
 
 # set base program pointers and flags
@@ -348,6 +353,9 @@ ifeq ($(DBG_TIMING), 1)
 endif
 ifeq ($(DBG_PROFILE), 1)
   CFLAGS += -DPROFILE_R4300
+endif
+ifeq ($(GLES), 1)
+  CFLAGS += -DUSE_GLES
 endif
 # 4. compile-time directory paths for building into the library
 ifneq ($(SHAREDIR),)
@@ -578,6 +586,7 @@ targets:
 	@echo "    WARNFLAGS=flag == compiler warning levels (default: -Wall)"
 	@echo "    PIC=(1|0)     == Force enable/disable of position independent code"
 	@echo "    OSD=(1|0)     == Enable/disable build of OpenGL On-screen display"
+	@echo "	   GLES=(1|0)    == Use GLES2 instead of OpenGL (no OSD then!)"
 	@echo "    NEW_DYNAREC=1 == Replace dynamic recompiler with Ari64's experimental dynarec"
 	@echo "    POSTFIX=name  == String added to the name of the the build (default: '')"
 	@echo "  Install Options:"

@@ -30,6 +30,7 @@
 #include <wchar.h>
 
 #define GL_GLEXT_PROTOTYPES
+#ifdef USE_GLES
 #ifdef PANDORA
 # include <SDL_opengles2.h>
 #elif defined(ODROID) || defined(CHIP)
@@ -40,6 +41,7 @@
 # endif
 # undef __USE_SDL_OPENGL__
 # define __USE_SDL_GLES2__
+#endif
 #else
 # include <SDL_opengl.h>
 #endif
@@ -47,7 +49,7 @@
 #include <OpenGL/glu.h>
 #elif defined(__MACOS__)
 #include <glu.h>
-#elif defined(PANDORA)
+#elif defined(USE_GLES)
 #include <GLES2/glu.h>
 #else
 #include <GL/glu.h>

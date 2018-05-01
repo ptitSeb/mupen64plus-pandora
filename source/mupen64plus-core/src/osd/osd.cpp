@@ -20,6 +20,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // On-screen Display
+#ifdef USE_GLES
 #ifdef PANDORA
 # include <SDL_opengles2.h>
 #elif defined(ODROID) || defined(CHIP)
@@ -30,12 +31,13 @@
 # endif
 # undef __USE_SDL_OPENGL__
 # define __USE_SDL_GLES2__
+#endif
 #else
 #include <SDL_opengl.h>
 #endif
 #include <SDL_thread.h>
 
-#if !(defined(PANDORA) || defined(ODROID) || defined(CHIP))
+#ifndef USE_GLES
 #include "OGLFT.h"
 #endif
 #include "osd.h"
@@ -289,7 +291,7 @@ void osd_exit(void)
 
     // delete message queue
     SDL_LockMutex(osd_list_lock);
-    list_for_each_entry_safe(msg, safe, &l_messageQueue, osd_message_t, list) {
+    list_for_each_entry_safe_t(msg, safe, &l_messageQueue, osd_message_t, list) {
         osd_remove_message(msg);
         if (!msg->user_managed)
             free(msg);
@@ -380,7 +382,7 @@ void osd_render()
         fCornerPos[i] = 0.5f * l_fLineHeight;
 
     SDL_LockMutex(osd_list_lock);
-    list_for_each_entry_safe(msg, safe, &l_messageQueue, osd_message_t, list) {
+    list_for_each_entry_safe_t(msg, safe, &l_messageQueue, osd_message_t, list) {
         // update message state
         if(msg->timeout[msg->state] != OSD_INFINITE_TIMEOUT &&
            ++msg->frames >= msg->timeout[msg->state])
@@ -604,7 +606,7 @@ static osd_message_t * osd_message_valid(osd_message_t *testmsg)
 
     if (!l_OsdInitialized || !testmsg) return NULL;
 
-    list_for_each_entry(msg, &l_messageQueue, osd_message_t, list) {
+    list_for_each_entry_t(msg, &l_messageQueue, osd_message_t, list) {
         if (msg == testmsg)
             return testmsg;
     }

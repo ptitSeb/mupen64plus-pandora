@@ -38,7 +38,7 @@
 #include "vidext_sdl2_compat.h"
 #endif
 
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifdef USE_GLES
 #define USE_EGL_SDL 1
 #ifdef USE_EGL_SDL
 #include "eglport.h"
@@ -137,7 +137,7 @@ EXPORT m64p_error CALL VidExt_Quit(void)
 
     if (!SDL_WasInit(SDL_INIT_VIDEO))
         return M64ERR_NOT_INIT;
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifdef USE_GLES
 #ifdef USE_EGL_SDL
     EGL_Close();
 #else
@@ -182,7 +182,7 @@ EXPORT m64p_error CALL VidExt_ListFullscreenModes(m64p_2d_size *SizeArray, int *
         return M64ERR_NOT_INIT;
 
     /* get a list of SDL video modes */
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifdef USE_GLES
     videoFlags = SDL_FULLSCREEN;
 #else
     videoFlags = SDL_OPENGL | SDL_FULLSCREEN;
@@ -194,7 +194,7 @@ EXPORT m64p_error CALL VidExt_ListFullscreenModes(m64p_2d_size *SizeArray, int *
         return M64ERR_SYSTEM_FAIL;
     }
 
-#if !(defined(PANDORA) || defined(ODROID) || defined(CHIP))
+#ifndef USE_GLES
     if(videoInfo->hw_available)
         videoFlags |= SDL_HWSURFACE;
     else
@@ -250,7 +250,7 @@ printf("SDL was not init, aborting\n");
     /* Get SDL video flags to use */
     if (ScreenMode == M64VIDEO_WINDOWED)
     {
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifdef USE_GLES
         videoFlags = 0;
         useFB = 0;
 #else
@@ -261,7 +261,7 @@ printf("SDL was not init, aborting\n");
     }
     else if (ScreenMode == M64VIDEO_FULLSCREEN)
     {
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifdef USE_GLES
         videoFlags = SDL_FULLSCREEN;
 #else
         videoFlags = SDL_OPENGL | SDL_FULLSCREEN;
@@ -277,7 +277,7 @@ printf("SDL was not init, aborting\n");
         DebugMessage(M64MSG_ERROR, "SDL_GetVideoInfo query failed: %s", SDL_GetError());
         return M64ERR_SYSTEM_FAIL;
     }
-#if !(defined(PANDORA) || defined(ODROID)) || defined(CHIP)
+#ifndef USE_GLES
     if (videoInfo->hw_available)
         videoFlags |= SDL_HWSURFACE;
     else
@@ -296,9 +296,9 @@ printf("SDL was not init, aborting\n");
         DebugMessage(M64MSG_ERROR, "SDL_SetVideoMode failed: %s", SDL_GetError());
         return M64ERR_SYSTEM_FAIL;
     }
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifdef USE_GLES
     // Setup EGL Context...
-#if defined(PANDORA) || defined(CHIP)
+#if defined(PANDORA)
     useFB = 1;
 #else
     useFB = 0;
@@ -405,7 +405,7 @@ EXPORT m64p_error CALL VidExt_ResizeWindow(int Width, int Height)
     }
 
     /* Get SDL video flags to use */
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifdef USE_GLES
     if (useFB)
         return M64ERR_INVALID_STATE;
     videoFlags = SDL_RESIZABLE;
@@ -417,7 +417,7 @@ EXPORT m64p_error CALL VidExt_ResizeWindow(int Width, int Height)
         DebugMessage(M64MSG_ERROR, "SDL_GetVideoInfo query failed: %s", SDL_GetError());
         return M64ERR_SYSTEM_FAIL;
     }
-#if !(defined(PANDORA) || defined(ODROID) || defined(CHIP))
+#ifndef USE_GLES
     if (videoInfo->hw_available)
         videoFlags |= SDL_HWSURFACE;
     else
@@ -541,7 +541,7 @@ EXPORT m64p_error CALL VidExt_GL_SetAttribute(m64p_GLattr Attr, int Value)
     if (!SDL_WasInit(SDL_INIT_VIDEO))
         return M64ERR_NOT_INIT;
 
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifndef USE_GLES
         return M64ERR_SUCCESS;
 #else
 
@@ -591,7 +591,7 @@ EXPORT m64p_error CALL VidExt_GL_GetAttribute(m64p_GLattr Attr, int *pValue)
     if (!SDL_WasInit(SDL_INIT_VIDEO))
         return M64ERR_NOT_INIT;
 
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifdef USE_GLES
     return M64ERR_SUCCESS;
 #else
     for (i = 0; i < mapSize; i++)
@@ -639,7 +639,7 @@ EXPORT m64p_error CALL VidExt_GL_SwapBuffers(void)
     if (!SDL_WasInit(SDL_INIT_VIDEO))
         return M64ERR_NOT_INIT;
 
-#if defined(PANDORA) || defined(ODROID) || defined(CHIP)
+#ifdef USE_GLES
 #ifdef USE_EGL_SDL
     EGL_SwapBuffers();
 #else
