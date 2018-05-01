@@ -24,7 +24,7 @@
 
 // EXT_secondary_color functions
 #ifndef HAVE_GLES
-#ifndef GL_GLEXT_VERSION
+#if 1//ndef GL_GLEXT_VERSION
 PFNGLSECONDARYCOLOR3BEXTPROC glSecondaryColor3bEXT;
 PFNGLSECONDARYCOLOR3BVEXTPROC glSecondaryColor3bvEXT;
 PFNGLSECONDARYCOLOR3DEXTPROC glSecondaryColor3dEXT;
@@ -50,7 +50,7 @@ bool initializeSecondaryColorExtension()
 #ifndef HAVE_GLES
     if ( isExtensionSupported( "GL_EXT_secondary_color" ))
     {
-#ifndef GL_GLEXT_VERSION
+#if 1//ndef GL_GLEXT_VERSION
         glSecondaryColor3bEXT = (PFNGLSECONDARYCOLOR3BEXTPROC)wglGetProcAddress( "glSecondaryColor3bEXT" );
         glSecondaryColor3bvEXT = (PFNGLSECONDARYCOLOR3BVEXTPROC)wglGetProcAddress( "glSecondaryColor3bvEXT" );
         glSecondaryColor3dEXT = (PFNGLSECONDARYCOLOR3DEXTPROC)wglGetProcAddress( "glSecondaryColor3dEXT" );

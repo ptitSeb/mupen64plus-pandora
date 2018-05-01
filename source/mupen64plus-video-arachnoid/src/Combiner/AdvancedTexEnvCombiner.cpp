@@ -147,6 +147,7 @@ void AdvancedTexEnvCombiner::beginTextureUpdate()
         glActiveTextureARB(GL_TEXTURE0_ARB + i);
         glDisable(GL_TEXTURE_2D );
     }
+    glActiveTextureARB(GL_TEXTURE0_ARB);
 }
 
 
@@ -163,6 +164,7 @@ void AdvancedTexEnvCombiner::endTextureUpdate(TexEnvCombiner* texEnv)
         glActiveTextureARB( GL_TEXTURE0_ARB + i );
         glEnable( GL_TEXTURE_2D );
     }
+    glActiveTextureARB(GL_TEXTURE0_ARB);
 }
 
 //-----------------------------------------------------------------------------

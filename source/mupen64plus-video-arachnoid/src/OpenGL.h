@@ -22,7 +22,7 @@
 #define OPENGL_H
 
 #ifndef WIN32
-    #define GL_GLEXT_PROTOTYPES
+//    #define GL_GLEXT_PROTOTYPES
 #endif
 #if defined(__MACOSX__)
 #include <OpenGL/gl.h>
@@ -118,6 +118,35 @@ extern GLvoid*	glsav_tex1_array;
 #endif
 #ifndef WIN32
     #include <GL/glext.h>
+#if 1//ndef GL_GLEXT_VERSION
+extern PFNGLSECONDARYCOLOR3BEXTPROC glSecondaryColor3bEXT;
+extern PFNGLSECONDARYCOLOR3BVEXTPROC glSecondaryColor3bvEXT;
+extern PFNGLSECONDARYCOLOR3DEXTPROC glSecondaryColor3dEXT;
+extern PFNGLSECONDARYCOLOR3DVEXTPROC glSecondaryColor3dvEXT;
+extern PFNGLSECONDARYCOLOR3FEXTPROC glSecondaryColor3fEXT;
+extern PFNGLSECONDARYCOLOR3FVEXTPROC glSecondaryColor3fvEXT;
+extern PFNGLSECONDARYCOLOR3IEXTPROC glSecondaryColor3iEXT;
+extern PFNGLSECONDARYCOLOR3IVEXTPROC glSecondaryColor3ivEXT;
+extern PFNGLSECONDARYCOLOR3SEXTPROC glSecondaryColor3sEXT;
+extern PFNGLSECONDARYCOLOR3SVEXTPROC glSecondaryColor3svEXT;
+extern PFNGLSECONDARYCOLOR3UBEXTPROC glSecondaryColor3ubEXT;
+extern PFNGLSECONDARYCOLOR3UBVEXTPROC glSecondaryColor3ubvEXT;
+extern PFNGLSECONDARYCOLOR3UIEXTPROC glSecondaryColor3uiEXT;
+extern PFNGLSECONDARYCOLOR3UIVEXTPROC glSecondaryColor3uivEXT;
+extern PFNGLSECONDARYCOLOR3USEXTPROC glSecondaryColor3usEXT;
+extern PFNGLSECONDARYCOLOR3USVEXTPROC glSecondaryColor3usvEXT;
+extern PFNGLSECONDARYCOLORPOINTEREXTPROC glSecondaryColorPointerEXT;
+
+extern PFNGLFOGCOORDFEXTPROC glFogCoordfEXT;
+extern PFNGLFOGCOORDFVEXTPROC glFogCoordfvEXT;
+extern PFNGLFOGCOORDDEXTPROC glFogCoorddEXT;
+extern PFNGLFOGCOORDDVEXTPROC glFogCoorddvEXT;
+extern PFNGLFOGCOORDPOINTEREXTPROC glFogCoordPointerEXT;
+# ifdef __linux__
+#  include <GL/glx.h>
+#  define wglGetProcAddress glXGetProcAddress
+# endif
+#endif
 #endif
 
 #endif

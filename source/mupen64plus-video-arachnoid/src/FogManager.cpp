@@ -25,7 +25,7 @@
 #include "m64p.h"
 #include "OpenGL.h"
 
-#ifndef GL_GLEXT_VERSION
+#if 1//ndef GL_GLEXT_VERSION
     //-----------------------------------------------------------------------------
     // EXT_fog_coord functions
     //-----------------------------------------------------------------------------
@@ -100,7 +100,7 @@ void FogManager::initialize()
         m_fogExtensionsSupported = isExtensionSupported("GL_EXT_fog_coord");
         if ( m_fogExtensionsSupported )
         {
-#ifndef GL_GLEXT_VERSION
+#if 1//ndef GL_GLEXT_VERSION
             glFogCoordfEXT       = (PFNGLFOGCOORDFEXTPROC)wglGetProcAddress( "glFogCoordfEXT" );
             glFogCoordfvEXT      = (PFNGLFOGCOORDFVEXTPROC)wglGetProcAddress( "glFogCoordfvEXT" );
             glFogCoorddEXT       = (PFNGLFOGCOORDDEXTPROC)wglGetProcAddress( "glFogCoorddEXT" );

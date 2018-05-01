@@ -87,7 +87,7 @@ OpenGLRenderer::~OpenGLRenderer()
 }
 
 //-----------------------------------------------------------------------------
-//* Initialize
+// * Initialize
 //! Saves pointers and setup render OpenGl pointers to vertex data.
 //-----------------------------------------------------------------------------
 bool OpenGLRenderer::initialize(RSP* rsp, RDP* rdp, TextureCache* textureCache, VI* vi, FogManager* fogMgr)

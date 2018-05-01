@@ -113,9 +113,13 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
        CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ffast-math -fpermissive -DPANDORA
      endif
     endif
-    CFLAGS += -DHAVE_GLES
+    #CFLAGS += -DHAVE_GLES
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
   endif
+endif
+
+ifeq ($(GLES),1)
+ CFLAGS += -DHAVE_GLES
 endif
 
 # base CFLAGS, LDLIBS, and LDFLAGS
@@ -172,15 +176,18 @@ else
     ifeq ($(shell $(PKG_CONFIG) --modversion gl 2>/dev/null),)
       $(error No OpenGL development libraries found!)
     endif
-    #GL_CFLAGS += $(shell $(PKG_CONFIG) --cflags gl)
-    #GL_LDLIBS +=  $(shell $(PKG_CONFIG) --libs gl)
     GL_CFLAGS += $(shell sdl-config --cflags)
     GL_LDLIBS += $(shell sdl-config --libs)
-    GL_CFLAGS += -I/mnt/utmp/codeblocks/usr/include/GLES
-    ifeq ($(ODROID),1)
-     GL_LDLIBS += -lGLESv1_CM -lEGL -lrt
+    ifeq ($(GLES),1)
+     GL_CFLAGS += -I/mnt/utmp/codeblocks/usr/include/GLES
+     ifeq ($(ODROID),1)
+      GL_LDLIBS += -lGLESv1_CM -lEGL -lrt
+     else
+      GL_LDLIBS += -lGLES_CM -lEGL -lrt
+     endif
     else
-     GL_LDLIBS += -lGLES_CM -lEGL -lrt
+     GL_CFLAGS += $(shell $(PKG_CONFIG) --cflags gl)
+     GL_LDLIBS +=  $(shell $(PKG_CONFIG) --libs gl)
     endif
   endif
   CFLAGS += $(GL_CFLAGS)
@@ -376,6 +383,7 @@ targets:
 	@echo "    OPTFLAGS=flag == compiler optimization (default: -O3 -flto)"
 	@echo "    WARNFLAGS=flag == compiler warning levels (default: -Wall)"
 	@echo "    PIC=(1|0)     == Force enable/disable of position independent code"
+	@echo "    GLES=(1|1)    == Use GLES 1.1 instead of OpenGL"
 	@echo "    POSTFIX=name  == String added to the name of the the build (default: '')"
 	@echo "  Install Options:"
 	@echo "    PREFIX=path   == install/uninstall prefix (default: /usr/local)"
