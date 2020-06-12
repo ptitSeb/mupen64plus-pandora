@@ -32,7 +32,11 @@ CFLAGS += -Wall -ggdb -gdwarf-2
 ifeq ($(ODROID),1)
  CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -ftree-vectorize -ffast-math
 else
+ifeq ($(PYRA),1)
+ CFLAGS += -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -ftree-vectorize -ffast-math -marm
+else
  CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -ftree-vectorize -ffast-math
+endif
 endif
 CFLAGS += -O3
 

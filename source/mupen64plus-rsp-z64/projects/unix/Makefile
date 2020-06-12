@@ -116,7 +116,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
      ifeq ($(CHIP),1)
        CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=hard -fsigned-char
      else
+      ifeq ($(PYRA),1)
+       CFLAGS += -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -fsigned-char -marm
+      else
        CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char
+     endif
      endif
     endif
     $(warning Architecture "$(HOST_CPU)" not officially supported.')

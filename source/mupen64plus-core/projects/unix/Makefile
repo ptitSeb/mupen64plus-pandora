@@ -101,8 +101,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     else
      ifeq ($(CHIP),1)
       CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment
-     else
-      CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment
+      ifeq ($(PYRA),1)
+       CFLAGS += -g -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -fsigned-char -marm -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-comment
+      else
+       CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment
+      endif
      endif
     endif
     $(warning Architecture "$(HOST_CPU)" not officially supported.')
@@ -485,8 +488,11 @@ ifneq ($(NO_ASM), 1)
 	else
  	  ifeq ($(CHIP),1)
 	    CFLAGS += -DCHIP
+          ifeq ($(PYRA),1)
+            CFLAGS += -DPYRA
 	  else
 	    CFLAGS += -DPANDORA
+	  endif
 	  endif
 	endif
     endif

@@ -10,6 +10,10 @@ BUILDTARGET = PANDORA
 ifeq ($(ODROID),1)
  BUILDTARGET = ODROID
 endif
+ifeq ($(PYRA),1)
+ BUILDTARGET = PYRA
+endif
+
 
 # Compiler flags
 CXXFLAGS     ?= -g -Wall -Wextra -O3
@@ -36,6 +40,15 @@ INCLUDE  = $(PREFIX)/usr/include
 LIBRARY  = $(PREFIX)/usr/lib
 CXXFLAGS += -DODROID -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard
 LDFLAGS  = $(BASE_LDFLAGS) -lfreetype -ltiff -lpng12 -lz -ljpeg
+else
+ifeq ($(BUILDTARGET),PYRA)
+PREFIX   =
+TOOLS    = usr/bin
+TARGET   =
+INCLUDE  = $(PREFIX)/usr/include
+LIBRARY  = $(PREFIX)/usr/lib
+CXXFLAGS += -DPYRA -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -marm
+LDFLAGS  = $(BASE_LDFLAGS) -lfreetype -ltiff -lpng16 -lz -ljpeg
 else
 ifeq ($(BUILDTARGET),CAANOO)
 PREFIX   = /data/devel/toolchains/caanoo/GPH_SDK
@@ -79,6 +92,7 @@ TARGET   =
 INCLUDE  = $(PREFIX)/include
 LIBRARY  = $(PREFIX)/lib
 LDFLAGS  = $(BASE_LDFLAGS)
+endif
 endif
 endif
 endif

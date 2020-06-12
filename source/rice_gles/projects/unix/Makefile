@@ -115,7 +115,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     ifeq ($(ODROID),1)
      CFLAGS += -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -DODROID
     else
+    ifeq ($(PYRA),1)
+     CFLAGS += -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -fsigned-char -ffast-math -marm -DPYRA
+    else
      CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ffast-math -DPANDORA
+    endif
     endif
     CFLAGS += -DANDROID
     CFLAGS += -DPAULSCODE 
@@ -227,7 +231,11 @@ ifeq ($(origin GL_CFLAGS) $(origin GL_LDLIBS), undefined undefined)
   ifeq ($(ODROID),1)
    GL_LDLIBS += -lGLESv1_CM -lEGL -lrt
   else
+  ifeq ($(PYRA),1)
+    GL_LDLIBS += -L /opt/omap5-sgx-ddk-um-linux/lib/ -lGLES_CM -lEGL -lrt
+  else
    GL_LDLIBS += -lGLES_CM -lEGL -lrt
+  endif
   endif
 endif
 CFLAGS += $(GL_CFLAGS)

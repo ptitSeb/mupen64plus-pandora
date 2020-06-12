@@ -113,8 +113,11 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     else
      ifeq ($(CHIP),1)
        CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=hard -fsigned-char
-     else
-       CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char
+      ifeq ($(PYRA),1)
+       CFLAGS += -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -fsigned-char -marm
+      else
+        CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char
+      endif
      endif
     endif
     PIC ?= 1

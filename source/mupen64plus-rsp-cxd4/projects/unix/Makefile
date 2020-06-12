@@ -119,9 +119,13 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
      ifeq ($(CHIP),1)
        CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=hard -fsigned-char -ftree-vectorize -ffast-math
        CFLAGS += -DUSE_SSE2NEON -D__ARM_NEON__
-     else
-       CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ftree-vectorize -ffast-math
-       CFLAGS += -DUSE_SSE2NEON -D__ARM_NEON__
+       ifeq ($(PYRA),1)
+         CFLAGS += -g -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -fsigned-char -ftree-vectorize -ffast-math -marm
+         CFLAGS += -DUSE_SSE2NEON -D__ARM_NEON__
+       else
+         CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ftree-vectorize -ffast-math
+         CFLAGS += -DUSE_SSE2NEON -D__ARM_NEON__
+       endif
      endif
     endif
   endif
