@@ -284,8 +284,13 @@ else*/
     int y = 0;
     
     //re-scale width and height on per-rom basis
+#ifdef PYRA
+    float width = 1280.f;
+    float height = 720.f;
+#else
     float width = /*(float)videoWidth * (float)config.window.refwidth /*/ 800.f;
     float height = /*(float)videoHeight * (float)config.window.refheight / */480.f;
+#endif
     
    if (!config.stretchVideo) {
 /*	if ((float)videoWith*480.0f/(float)videoHeight/800.0f>1.0f) {

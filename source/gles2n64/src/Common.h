@@ -9,7 +9,7 @@
 #define LOG_WARNING 3
 #define LOG_VERBOSE 4
 
-#define LOG_LEVEL LOG_NONE
+#define LOG_LEVEL LOG_ERROR
 
 # ifndef min
 #  define min(a,b) ((a) < (b) ? (a) : (b))

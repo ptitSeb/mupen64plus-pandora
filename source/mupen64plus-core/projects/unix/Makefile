@@ -95,14 +95,16 @@ ifneq ("$(filter arm%,$(HOST_CPU))","")
     ARCH_DETECTED := 32BITS
     PIC ?= 1
     OSD ?= 0
+    CFLAGS += -marm
     NEW_DYNAREC := 1
     ifeq ($(ODROID),1)
      CFLAGS += -g -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment
     else
      ifeq ($(CHIP),1)
       CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=hard -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment
+      else
       ifeq ($(PYRA),1)
-       CFLAGS += -g -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -fsigned-char -marm -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-comment
+       CFLAGS += -g -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-comment
       else
        CFLAGS += -g -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -fsigned-char -ffast-math -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-comment
       endif
@@ -269,6 +271,7 @@ ifeq ($(OSD), 1)
     GLU_LDLIBS = -lglu32
   endif
 
+
   ifeq ($(origin GL_CFLAGS) $(origin GL_LDLIBS), undefined undefined)
     ifeq ($(shell $(PKG_CONFIG) --modversion gl 2>/dev/null),)
       $(error No OpenGL development libraries found!)
@@ -329,9 +332,10 @@ else
     CFLAGS += -g -DDEBUG_MSG_TO_LOGFILE
     INSTALL_STRIP_FLAG ?= 
   else
-    ifneq ($(OS),OSX)
-      INSTALL_STRIP_FLAG ?= -s
-	endif
+#    ifneq ($(OS),OSX)
+#      INSTALL_STRIP_FLAG ?= -s
+     INSTALL_STRIP_FLAG ?=
+#	endif
   endif
 endif
 # 3. other options given to the makefile on the command line
@@ -488,6 +492,7 @@ ifneq ($(NO_ASM), 1)
 	else
  	  ifeq ($(CHIP),1)
 	    CFLAGS += -DCHIP
+	  else
           ifeq ($(PYRA),1)
             CFLAGS += -DPYRA
 	  else

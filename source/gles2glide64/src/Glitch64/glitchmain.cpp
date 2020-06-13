@@ -538,7 +538,7 @@ grSstWinOpen(
   if (origin_location != GR_ORIGIN_UPPER_LEFT) display_warning("origin must be in upper left corner");
   if (nColBuffers != 2) display_warning("number of color buffer is not 2");
   if (nAuxBuffers != 1) display_warning("number of auxiliary buffer is not 1");
-
+#if 0
   if (isExtensionSupported("GL_ARB_texture_env_combine") == 0 &&
     isExtensionSupported("GL_EXT_texture_env_combine") == 0 &&
     show_warning)
@@ -548,7 +548,7 @@ grSstWinOpen(
   if (isExtensionSupported("GL_ARB_texture_mirrored_repeat") == 0 && show_warning)
     display_warning("Your video card doesn't support GL_ARB_texture_mirrored_repeat extension");
   show_warning = 0;
-
+#endif
 #ifdef _WIN32
   glActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC)wglGetProcAddress("glActiveTextureARB");
   glMultiTexCoord2fARB = (PFNGLMULTITEXCOORD2FARBPROC)wglGetProcAddress("glMultiTexCoord2fARB");

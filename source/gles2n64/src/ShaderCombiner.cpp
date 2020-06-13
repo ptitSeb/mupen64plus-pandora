@@ -405,28 +405,36 @@ int _program_compare(ShaderProgram *prog, DecodedMux *dmux, u32 flags)
 
 void _glcompiler_error(GLint shader)
 {
-    int len, i;
+    int len=0, i;
     char* log;
 
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
-    log = (char*) malloc(len + 1);
-    glGetShaderInfoLog(shader, len, &i, log);
-    log[len] = 0;
-    LOG(LOG_ERROR, "COMPILE ERROR: %s \n", log);
-    free(log);
+    if(len) {
+     log = (char*) malloc(len + 1);
+     glGetShaderInfoLog(shader, len, &i, log);
+     log[len] = 0;
+     LOG(LOG_ERROR, "COMPILE ERROR: %s \n", log);
+     free(log);
+    } else {
+     LOG(LOG_ERROR, "COMPILE ERROR is Unknown\n");
+    }
 }
 
 void _gllinker_error(GLint program)
 {
-    int len, i;
+    int len=0, i;
     char* log;
 
     glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
-    log = (char*) malloc(len + 1);
-    glGetProgramInfoLog(program, len, &i, log);
-    log[len] = 0;
-    LOG(LOG_ERROR, "LINK ERROR: %s \n", log);
-    free(log);
+    if(len) {
+     log = (char*) malloc(len + 1);
+     glGetProgramInfoLog(program, len, &i, log);
+     log[len] = 0;
+     LOG(LOG_ERROR, "LINK ERROR: %s \n", log);
+     free(log);
+    } else {
+     LOG(LOG_ERROR, "LINK ERROR is Unknown\n");
+    }
 };
 
 void _locate_attributes(ShaderProgram *p)

@@ -1,7 +1,7 @@
 PIC ?= 1
 NO_ASM := 1
 ifeq ($(PYRA),1)
-CFLAGS += -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -marm -fsigned-char -DNO_ASM -DPAULSCODE -Ofast -ffast-math -fno-strict-aliasing
+CFLAGS += -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -marm -fsigned-char -DNO_ASM -DPAULSCODE -DPYRA -Ofast -ffast-math -fno-strict-aliasing
 else
 CFLAGS += -mcpu=cortex-a8 -mfpu=neon -mfloat-abi=softfp -mtune=cortex-a8 -fsigned-char -DNO_ASM -DPAULSCODE -Ofast -ffast-math -fno-strict-aliasing
 endif

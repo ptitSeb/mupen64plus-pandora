@@ -47,7 +47,7 @@ TOOLS    = usr/bin
 TARGET   =
 INCLUDE  = $(PREFIX)/usr/include
 LIBRARY  = $(PREFIX)/usr/lib
-CXXFLAGS += -DPYRA -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -marm
+CXXFLAGS += -DPYRA -mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=hard -marm -fsigned-char -g
 LDFLAGS  = $(BASE_LDFLAGS) -lfreetype -ltiff -lpng16 -lz -ljpeg
 else
 ifeq ($(BUILDTARGET),CAANOO)

@@ -333,7 +333,7 @@ void OpenCfg ( const char* file )
     strncpy( eglStrings[CFG_STENCIL_SIZE], "size_stencil=", MAX_STRING );
 
     /* Set defaults */
-#if defined(USE_EGL_SDL) && !(defined(PANDORA) || defined(CHIP))
+#if defined(USE_EGL_SDL) && !(defined(PANDORA) || defined(CHIP) || defined(PYRA))
     eglSettings[CFG_MODE]           = RENDER_SDL;
 #else
     eglSettings[CFG_MODE]           = RENDER_RAW;

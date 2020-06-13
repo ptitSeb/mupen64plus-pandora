@@ -298,7 +298,7 @@ printf("SDL was not init, aborting\n");
     }
 #ifdef USE_GLES
     // Setup EGL Context...
-#if defined(PANDORA)
+#if defined(PANDORA) || defined(PYRA)
     useFB = 1;
 #else
     useFB = 0;

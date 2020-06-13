@@ -34,6 +34,9 @@ using namespace std;
 #if defined(PANDORA) || defined(X86) || defined(ODROID)
 #define SCREEN_WIDTH        800                     /**< Default screen width for Pandora and PC (pixels). */
 #define SCREEN_HEIGHT       480                     /**< Default screen height for Pandora and PC (pixels). */
+#elif defined(PYRA)
+#define SCREEN_WIDTH        1280
+#define SCREEN_HEIGHT       720
 #else
 #define SCREEN_WIDTH        BASE_WIDTH              /**< Default screen width for any other device (pixels). */
 #define SCREEN_HEIGHT       BASE_HEIGHT             /**< Default screen height for any other device (pixels). */

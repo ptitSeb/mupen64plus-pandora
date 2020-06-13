@@ -282,7 +282,7 @@ int8_t CSelector::OpenResources( void )
     UpdateRect( 0, 0, Config.ScreenWidth, Config.ScreenHeight );
 
     // Load joystick
-#if !defined(PANDORA) && !defined(X86) && !defined(ODROID)
+#if !defined(PANDORA) && !defined(X86) && !defined(ODROID) && !defined(PYRA)
     Joystick = SDL_JoystickOpen(0);
     if (Joystick == NULL)
     {
